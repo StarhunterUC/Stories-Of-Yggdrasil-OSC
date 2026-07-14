@@ -1,0 +1,2 @@
+python-osc>=1.8,<2
+Pillow>=10,<12

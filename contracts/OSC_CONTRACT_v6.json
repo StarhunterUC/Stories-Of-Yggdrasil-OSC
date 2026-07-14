@@ -1,0 +1,61 @@
+{
+  "contract_version": 6,
+  "desktop_version": "0.7.0",
+  "combat_toggle": "SoY_CombatEnabled",
+  "direct_inputs": {
+    "weak": "SoY_HitWeak",
+    "average": "SoY_HitAverage",
+    "strong": "SoY_HitStrong",
+    "critical": "SoY_HitCritical",
+    "blocked": "SoY_HitBlocked",
+    "burn": "SoY_DebuffBurn",
+    "bleed": "SoY_DebuffBleed",
+    "silence": "SoY_DebuffSilence",
+    "freeze": "SoY_DebuffFreeze",
+    "bind": "SoY_DebuffBind"
+  },
+  "compatible_avatar_inputs": {
+    "health": "Health",
+    "block": "Hit Blocked",
+    "weak": [
+      "Hit By Weak Attack T0",
+      "Hit By Weak Attack T1",
+      "Hit By Weak Attack T2",
+      "Hit By Weak Attack T3"
+    ],
+    "average": [
+      "Hit By Average Attack T0",
+      "Hit By Average Attack T1",
+      "Hit By Average Attack T2",
+      "Hit By Average Attack T3"
+    ],
+    "strong": [
+      "Hit By Strong Attack T0",
+      "Hit By Strong Attack T1",
+      "Hit By Strong Attack T2",
+      "Hit By Strong Attack T3"
+    ],
+    "critical": [
+      "Hit By Critical Attack T0",
+      "Hit By Critical Attack T1",
+      "Hit By Critical Attack T2",
+      "Hit By Critical Attack T3"
+    ],
+    "statuses": {
+      "burn": "DoT Burn",
+      "bleed": "DoT Bleed",
+      "silence": "Suppress Silence",
+      "freeze": "Slow Freeze",
+      "bind": "Slow Bind"
+    }
+  },
+  "outputs": {
+    "hp_percent": "SoY_HPPercent",
+    "hp_stage": "SoY_HPStage",
+    "critical_hp": "SoY_CriticalHP",
+    "ko": "SoY_KO",
+    "healing": "SoY_Healing",
+    "damaged": "SoY_Damaged"
+  },
+  "unity_tool_version": "0.4.4"
+}
