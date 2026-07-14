@@ -28,14 +28,7 @@ The source package requires Python 3.11 or newer. The included GitHub workflow b
 ## Sam.py pairing
 
 1. Run `/osc_link` in Discord.
-2. Open **Connection**.
-3. Keep the server set to:
-
-```text
-https://admin.storiesofyggdrasil.com/api/osc
-```
-
-4. Enter the one-use code and select **Pair Device**.
+2. Enter the one-use code and select **Pair Device**.
 
 ## Recovery
 
