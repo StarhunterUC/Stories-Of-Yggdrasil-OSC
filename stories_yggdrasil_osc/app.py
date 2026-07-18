@@ -667,6 +667,12 @@ class StoriesOSCApp:
             payload["hp_ratio"] = float(snap["hp_ratio"])
         if bool(cfg.get("sync_combat_toggle", True)):
             payload["combat_enabled"] = bool(snap["combat_enabled"])
+        payload.update(dict(self.controller.telemetry))
+        if int(payload.get("spell_type", 0) or 0) == 0:
+            payload.pop("spell_type", None)
+        hit_event = str(payload.get("hit_event") or "")
+        if hit_event:
+            self.controller.telemetry["hit_event"] = ""
         if bool(cfg.get("sync_statuses", True)):
             active = snap.get("statuses", {})
             statuses: dict[str, Any] = {}
@@ -797,6 +803,16 @@ class StoriesOSCApp:
             return
         self.remote_state = dict(state)
         self.remote_character = dict(char)
+        osc_state = state.get("osc") if isinstance(state.get("osc"), dict) else {}
+        for param_key, value_key in (("enemy_mode", "enemy_mode"), ("mist_charge", "mist_charge"), ("mist_max", "mist_max"), ("mist_percent", "mist_percent"), ("diablos_applicable", "diablos_applicable"), ("diablos_percent", "diablos_percent")):
+            parameter = str(self.config.get("parameters", {}).get(param_key) or "").strip()
+            if parameter:
+                self._send_parameter(parameter, osc_state.get(value_key, False if "applicable" in value_key or "enemy" in value_key else 0))
+        rejected_heal = bool(osc_state.get("healing_rejected", False))
+        if rejected_heal:
+            parameter = str(self.config.get("parameters", {}).get("healing_rejected") or "").strip()
+            if parameter:
+                self._pulse_parameter(parameter, 0.25)
         name = str(char.get("name") or state.get("active_character") or "Unknown")
         hp = max(0, int(char.get("hp", 0) or 0))
         max_hp = max(1, int(char.get("max_hp", max(hp, 1)) or 1))

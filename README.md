@@ -62,3 +62,7 @@ GitHub update support is ready but requires the repository's `owner/repository` 
 ## Unity tool
 
 Unity Contact System v0.4.4 is included in the complete bundle. Existing v0.4.3-installed avatar contacts remain compatible; replacing the Editor script does not require rebuilding the avatar unless the installer reports a missing hook.
+
+
+## v0.8.0 Unity synchronization
+Supports `SoY_SpellType`, Enemy Mode, Mist Charge, Curse of Diablos warnings, healing rejection, and one-second hit protection through Sam.py OSC API v0.8.0.

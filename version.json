@@ -1,7 +1,7 @@
 {
   "product": "Stories Of Yggdrasil OSC",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "channel": "stable",
-  "api_minimum": "0.7.0",
-  "unity_tool": "0.4.4"
+  "api_minimum": "0.8.0",
+  "unity_tool": "0.5.2"
 }

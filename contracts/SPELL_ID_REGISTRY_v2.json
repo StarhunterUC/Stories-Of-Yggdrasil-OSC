@@ -1,0 +1,1974 @@
+{
+  "version": 2,
+  "tool_version": "0.5.2",
+  "parameter": "SoY_SpellType",
+  "range": {
+    "minimum": 0,
+    "maximum": 255,
+    "idle": 0
+  },
+  "compatibility": {
+    "v0.5.1_ids_preserved": true,
+    "preserved_ranges": [
+      "1-25",
+      "101-127"
+    ],
+    "duplicate_school_memberships_reuse_the_same_id": true
+  },
+  "counts": {
+    "unique_spell_ids": 144,
+    "school_memberships": 151,
+    "schools": 12
+  },
+  "categories": [
+    "offensive",
+    "healing",
+    "revival",
+    "cleanse",
+    "support",
+    "status",
+    "utility"
+  ],
+  "schools": {
+    "White Magick": [
+      {
+        "id": 1,
+        "name": "Cure",
+        "category": "healing"
+      },
+      {
+        "id": 2,
+        "name": "Cura",
+        "category": "healing"
+      },
+      {
+        "id": 3,
+        "name": "Curaga",
+        "category": "healing"
+      },
+      {
+        "id": 4,
+        "name": "Curaja",
+        "category": "healing"
+      },
+      {
+        "id": 5,
+        "name": "Raise",
+        "category": "revival"
+      },
+      {
+        "id": 6,
+        "name": "Arise",
+        "category": "revival"
+      },
+      {
+        "id": 7,
+        "name": "Renew",
+        "category": "healing"
+      },
+      {
+        "id": 8,
+        "name": "Regen",
+        "category": "healing"
+      },
+      {
+        "id": 9,
+        "name": "Poisona",
+        "category": "cleanse"
+      },
+      {
+        "id": 10,
+        "name": "Blindna",
+        "category": "cleanse"
+      },
+      {
+        "id": 11,
+        "name": "Vox",
+        "category": "cleanse"
+      },
+      {
+        "id": 12,
+        "name": "Stona",
+        "category": "cleanse"
+      },
+      {
+        "id": 13,
+        "name": "Esuna",
+        "category": "cleanse"
+      },
+      {
+        "id": 14,
+        "name": "Esunaga",
+        "category": "cleanse"
+      },
+      {
+        "id": 15,
+        "name": "Cleanse",
+        "category": "cleanse"
+      },
+      {
+        "id": 16,
+        "name": "Protect",
+        "category": "support"
+      },
+      {
+        "id": 17,
+        "name": "Protectga",
+        "category": "support"
+      },
+      {
+        "id": 18,
+        "name": "Shell",
+        "category": "support"
+      },
+      {
+        "id": 19,
+        "name": "Shellga",
+        "category": "support"
+      },
+      {
+        "id": 20,
+        "name": "Dispel",
+        "category": "cleanse"
+      },
+      {
+        "id": 21,
+        "name": "Dispelga",
+        "category": "cleanse"
+      },
+      {
+        "id": 22,
+        "name": "Bravery",
+        "category": "support"
+      },
+      {
+        "id": 23,
+        "name": "Faith",
+        "category": "support"
+      },
+      {
+        "id": 24,
+        "name": "Holy",
+        "category": "offensive"
+      },
+      {
+        "id": 25,
+        "name": "Confuse",
+        "category": "status"
+      },
+      {
+        "id": 100,
+        "name": "I Am... Recovery Atomic",
+        "category": "healing"
+      }
+    ],
+    "Green Magick": [
+      {
+        "id": 26,
+        "name": "Decoy",
+        "category": "support"
+      },
+      {
+        "id": 27,
+        "name": "Oil",
+        "category": "status"
+      },
+      {
+        "id": 28,
+        "name": "Reverse",
+        "category": "support"
+      },
+      {
+        "id": 29,
+        "name": "Drain",
+        "category": "offensive"
+      },
+      {
+        "id": 30,
+        "name": "Bubble",
+        "category": "support"
+      },
+      {
+        "id": 31,
+        "name": "Syphon",
+        "category": "offensive"
+      },
+      {
+        "id": 32,
+        "name": "Disablega",
+        "category": "status"
+      },
+      {
+        "id": 122,
+        "name": "Sleep",
+        "category": "status"
+      }
+    ],
+    "Time Magick": [
+      {
+        "id": 33,
+        "name": "Slow",
+        "category": "status"
+      },
+      {
+        "id": 34,
+        "name": "Immobilize",
+        "category": "status"
+      },
+      {
+        "id": 35,
+        "name": "Reflect",
+        "category": "support"
+      },
+      {
+        "id": 36,
+        "name": "Disable",
+        "category": "status"
+      },
+      {
+        "id": 37,
+        "name": "Vanish",
+        "category": "support"
+      },
+      {
+        "id": 38,
+        "name": "Balance",
+        "category": "offensive"
+      },
+      {
+        "id": 39,
+        "name": "Gravity",
+        "category": "offensive"
+      },
+      {
+        "id": 40,
+        "name": "Haste",
+        "category": "support"
+      },
+      {
+        "id": 41,
+        "name": "Stop",
+        "category": "status"
+      },
+      {
+        "id": 42,
+        "name": "Bleed",
+        "category": "status"
+      },
+      {
+        "id": 43,
+        "name": "Break",
+        "category": "status"
+      },
+      {
+        "id": 44,
+        "name": "Countdown",
+        "category": "status"
+      },
+      {
+        "id": 45,
+        "name": "Float",
+        "category": "support"
+      },
+      {
+        "id": 46,
+        "name": "Berserk",
+        "category": "status"
+      },
+      {
+        "id": 47,
+        "name": "Vanishga",
+        "category": "support"
+      },
+      {
+        "id": 48,
+        "name": "Warp",
+        "category": "status"
+      },
+      {
+        "id": 49,
+        "name": "Reflectga",
+        "category": "support"
+      },
+      {
+        "id": 50,
+        "name": "Slowga",
+        "category": "status"
+      },
+      {
+        "id": 51,
+        "name": "Graviga",
+        "category": "offensive"
+      },
+      {
+        "id": 52,
+        "name": "Hastega",
+        "category": "support"
+      }
+    ],
+    "Synergist Magick": [
+      {
+        "id": 53,
+        "name": "Boon",
+        "category": "support"
+      },
+      {
+        "id": 54,
+        "name": "Veil",
+        "category": "support"
+      },
+      {
+        "id": 55,
+        "name": "Vigilance",
+        "category": "support"
+      },
+      {
+        "id": 40,
+        "name": "Haste",
+        "category": "support"
+      },
+      {
+        "id": 56,
+        "name": "Barfire",
+        "category": "support"
+      },
+      {
+        "id": 57,
+        "name": "Barfrost",
+        "category": "support"
+      },
+      {
+        "id": 58,
+        "name": "Barthunder",
+        "category": "support"
+      },
+      {
+        "id": 59,
+        "name": "Barwater",
+        "category": "support"
+      },
+      {
+        "id": 22,
+        "name": "Bravery",
+        "category": "support"
+      },
+      {
+        "id": 23,
+        "name": "Faith",
+        "category": "support"
+      },
+      {
+        "id": 60,
+        "name": "Enfire",
+        "category": "support"
+      },
+      {
+        "id": 61,
+        "name": "Enfrost",
+        "category": "support"
+      },
+      {
+        "id": 62,
+        "name": "Enthunder",
+        "category": "support"
+      },
+      {
+        "id": 63,
+        "name": "Enwater",
+        "category": "support"
+      },
+      {
+        "id": 16,
+        "name": "Protect",
+        "category": "support"
+      },
+      {
+        "id": 18,
+        "name": "Shell",
+        "category": "support"
+      },
+      {
+        "id": 64,
+        "name": "Protectra",
+        "category": "support"
+      },
+      {
+        "id": 65,
+        "name": "Shellra",
+        "category": "support"
+      }
+    ],
+    "Illusion Magick": [
+      {
+        "id": 66,
+        "name": "Mindmaze",
+        "category": "status"
+      },
+      {
+        "id": 67,
+        "name": "Veil of the Unseen",
+        "category": "support"
+      },
+      {
+        "id": 68,
+        "name": "Mirror Walk",
+        "category": "support"
+      },
+      {
+        "id": 69,
+        "name": "Flicker",
+        "category": "support"
+      },
+      {
+        "id": 70,
+        "name": "Doppelgeist",
+        "category": "offensive"
+      },
+      {
+        "id": 71,
+        "name": "Glamour Veil",
+        "category": "status"
+      },
+      {
+        "id": 72,
+        "name": "False Terrain",
+        "category": "status"
+      },
+      {
+        "id": 73,
+        "name": "Unmake",
+        "category": "offensive"
+      },
+      {
+        "id": 74,
+        "name": "Phantom Army",
+        "category": "offensive"
+      },
+      {
+        "id": 75,
+        "name": "Phantom Atomic",
+        "category": "offensive"
+      }
+    ],
+    "Arcane Magick": [
+      {
+        "id": 76,
+        "name": "Dark",
+        "category": "offensive"
+      },
+      {
+        "id": 77,
+        "name": "Darka",
+        "category": "offensive"
+      },
+      {
+        "id": 78,
+        "name": "Darkra",
+        "category": "offensive"
+      },
+      {
+        "id": 79,
+        "name": "Darkga",
+        "category": "offensive"
+      },
+      {
+        "id": 80,
+        "name": "Death",
+        "category": "status"
+      },
+      {
+        "id": 81,
+        "name": "Ardor",
+        "category": "offensive"
+      },
+      {
+        "id": 82,
+        "name": "Soul Rend",
+        "category": "offensive"
+      },
+      {
+        "id": 83,
+        "name": "Ex Nihilo",
+        "category": "offensive"
+      },
+      {
+        "id": 84,
+        "name": "Atomic",
+        "category": "offensive"
+      }
+    ],
+    "Chaos Magick": [
+      {
+        "id": 85,
+        "name": "Chaos Lance",
+        "category": "offensive"
+      },
+      {
+        "id": 86,
+        "name": "Fracture",
+        "category": "offensive"
+      },
+      {
+        "id": 87,
+        "name": "Chaos Imbuement",
+        "category": "support"
+      },
+      {
+        "id": 88,
+        "name": "Cataclysm",
+        "category": "offensive"
+      },
+      {
+        "id": 89,
+        "name": "Balefire",
+        "category": "offensive"
+      },
+      {
+        "id": 90,
+        "name": "Event Horizon",
+        "category": "offensive"
+      },
+      {
+        "id": 91,
+        "name": "Chaos Atomic",
+        "category": "offensive"
+      }
+    ],
+    "Abyssal Curses": [
+      {
+        "id": 92,
+        "name": "Madness",
+        "category": "status"
+      },
+      {
+        "id": 93,
+        "name": "Wither",
+        "category": "status"
+      },
+      {
+        "id": 94,
+        "name": "Silence of Thought",
+        "category": "status"
+      },
+      {
+        "id": 95,
+        "name": "Null Pulse",
+        "category": "offensive"
+      },
+      {
+        "id": 96,
+        "name": "Worldrend",
+        "category": "offensive"
+      },
+      {
+        "id": 97,
+        "name": "Memory Bleed",
+        "category": "status"
+      }
+    ],
+    "Yggdrasil Light Magick": [
+      {
+        "id": 98,
+        "name": "Chakra Heal",
+        "category": "healing"
+      },
+      {
+        "id": 99,
+        "name": "Aura Shielding",
+        "category": "support"
+      }
+    ],
+    "Black Magick": [
+      {
+        "id": 101,
+        "name": "Fire",
+        "category": "offensive"
+      },
+      {
+        "id": 102,
+        "name": "Fira",
+        "category": "offensive"
+      },
+      {
+        "id": 103,
+        "name": "Firaga",
+        "category": "offensive"
+      },
+      {
+        "id": 104,
+        "name": "Blizzard",
+        "category": "offensive"
+      },
+      {
+        "id": 105,
+        "name": "Blizzara",
+        "category": "offensive"
+      },
+      {
+        "id": 106,
+        "name": "Blizzaga",
+        "category": "offensive"
+      },
+      {
+        "id": 107,
+        "name": "Thunder",
+        "category": "offensive"
+      },
+      {
+        "id": 108,
+        "name": "Thundara",
+        "category": "offensive"
+      },
+      {
+        "id": 109,
+        "name": "Thundaga",
+        "category": "offensive"
+      },
+      {
+        "id": 110,
+        "name": "Water",
+        "category": "offensive"
+      },
+      {
+        "id": 111,
+        "name": "Waterga",
+        "category": "offensive"
+      },
+      {
+        "id": 112,
+        "name": "Aqua",
+        "category": "offensive"
+      },
+      {
+        "id": 113,
+        "name": "Aero",
+        "category": "offensive"
+      },
+      {
+        "id": 114,
+        "name": "Aeroga",
+        "category": "offensive"
+      },
+      {
+        "id": 115,
+        "name": "Bio",
+        "category": "offensive"
+      },
+      {
+        "id": 116,
+        "name": "Poison",
+        "category": "status"
+      },
+      {
+        "id": 117,
+        "name": "Toxify",
+        "category": "status"
+      },
+      {
+        "id": 118,
+        "name": "Blind",
+        "category": "status"
+      },
+      {
+        "id": 119,
+        "name": "Blindga",
+        "category": "status"
+      },
+      {
+        "id": 120,
+        "name": "Silence",
+        "category": "status"
+      },
+      {
+        "id": 121,
+        "name": "Silencega",
+        "category": "status"
+      },
+      {
+        "id": 122,
+        "name": "Sleep",
+        "category": "status"
+      },
+      {
+        "id": 123,
+        "name": "Sleepga",
+        "category": "status"
+      },
+      {
+        "id": 124,
+        "name": "Shock",
+        "category": "offensive"
+      },
+      {
+        "id": 125,
+        "name": "Scourge",
+        "category": "offensive"
+      },
+      {
+        "id": 126,
+        "name": "Flare",
+        "category": "offensive"
+      },
+      {
+        "id": 127,
+        "name": "Scathe",
+        "category": "offensive"
+      }
+    ],
+    "Dream Magick": [
+      {
+        "id": 128,
+        "name": "Spirit Vision",
+        "category": "support"
+      },
+      {
+        "id": 122,
+        "name": "Sleep",
+        "category": "status"
+      },
+      {
+        "id": 129,
+        "name": "Whisper",
+        "category": "status"
+      },
+      {
+        "id": 130,
+        "name": "Foresight",
+        "category": "support"
+      },
+      {
+        "id": 131,
+        "name": "Spirit Chains",
+        "category": "status"
+      },
+      {
+        "id": 132,
+        "name": "Soul Step",
+        "category": "support"
+      },
+      {
+        "id": 133,
+        "name": "Bind & Banish",
+        "category": "offensive"
+      },
+      {
+        "id": 134,
+        "name": "Memoryweaving",
+        "category": "status"
+      }
+    ],
+    "Nature Magick": [
+      {
+        "id": 135,
+        "name": "Thornbind",
+        "category": "status"
+      },
+      {
+        "id": 136,
+        "name": "Verdant Ward",
+        "category": "support"
+      },
+      {
+        "id": 137,
+        "name": "Purifying Spores",
+        "category": "cleanse"
+      },
+      {
+        "id": 138,
+        "name": "Briar Cage",
+        "category": "status"
+      },
+      {
+        "id": 139,
+        "name": "Sylvan Blessing",
+        "category": "healing"
+      },
+      {
+        "id": 140,
+        "name": "Stormwhisper",
+        "category": "offensive"
+      },
+      {
+        "id": 141,
+        "name": "Wild Growth",
+        "category": "status"
+      },
+      {
+        "id": 142,
+        "name": "Living Bulwark",
+        "category": "support"
+      },
+      {
+        "id": 143,
+        "name": "Grovecall",
+        "category": "offensive"
+      },
+      {
+        "id": 144,
+        "name": "Rebirth Bloom",
+        "category": "revival"
+      }
+    ]
+  },
+  "id_index": [
+    {
+      "id": 1,
+      "name": "Cure",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Cura",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Curaga",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Curaja",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Raise",
+      "category": "revival",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Arise",
+      "category": "revival",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Renew",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Regen",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Poisona",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Blindna",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Vox",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Stona",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Esuna",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Esunaga",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Cleanse",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Protect",
+      "category": "support",
+      "schools": [
+        "White Magick",
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Protectga",
+      "category": "support",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Shell",
+      "category": "support",
+      "schools": [
+        "White Magick",
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Shellga",
+      "category": "support",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Dispel",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "Dispelga",
+      "category": "cleanse",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Bravery",
+      "category": "support",
+      "schools": [
+        "White Magick",
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Faith",
+      "category": "support",
+      "schools": [
+        "White Magick",
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Holy",
+      "category": "offensive",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 25,
+      "name": "Confuse",
+      "category": "status",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "Decoy",
+      "category": "support",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 27,
+      "name": "Oil",
+      "category": "status",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "Reverse",
+      "category": "support",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Drain",
+      "category": "offensive",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Bubble",
+      "category": "support",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 31,
+      "name": "Syphon",
+      "category": "offensive",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 32,
+      "name": "Disablega",
+      "category": "status",
+      "schools": [
+        "Green Magick"
+      ]
+    },
+    {
+      "id": 33,
+      "name": "Slow",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Immobilize",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 35,
+      "name": "Reflect",
+      "category": "support",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "Disable",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 37,
+      "name": "Vanish",
+      "category": "support",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Balance",
+      "category": "offensive",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 39,
+      "name": "Gravity",
+      "category": "offensive",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 40,
+      "name": "Haste",
+      "category": "support",
+      "schools": [
+        "Time Magick",
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 41,
+      "name": "Stop",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 42,
+      "name": "Bleed",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 43,
+      "name": "Break",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 44,
+      "name": "Countdown",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 45,
+      "name": "Float",
+      "category": "support",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 46,
+      "name": "Berserk",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "Vanishga",
+      "category": "support",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "Warp",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "Reflectga",
+      "category": "support",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "Slowga",
+      "category": "status",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 51,
+      "name": "Graviga",
+      "category": "offensive",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 52,
+      "name": "Hastega",
+      "category": "support",
+      "schools": [
+        "Time Magick"
+      ]
+    },
+    {
+      "id": 53,
+      "name": "Boon",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 54,
+      "name": "Veil",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 55,
+      "name": "Vigilance",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 56,
+      "name": "Barfire",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 57,
+      "name": "Barfrost",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 58,
+      "name": "Barthunder",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 59,
+      "name": "Barwater",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 60,
+      "name": "Enfire",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 61,
+      "name": "Enfrost",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 62,
+      "name": "Enthunder",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 63,
+      "name": "Enwater",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 64,
+      "name": "Protectra",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 65,
+      "name": "Shellra",
+      "category": "support",
+      "schools": [
+        "Synergist Magick"
+      ]
+    },
+    {
+      "id": 66,
+      "name": "Mindmaze",
+      "category": "status",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 67,
+      "name": "Veil of the Unseen",
+      "category": "support",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 68,
+      "name": "Mirror Walk",
+      "category": "support",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 69,
+      "name": "Flicker",
+      "category": "support",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 70,
+      "name": "Doppelgeist",
+      "category": "offensive",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 71,
+      "name": "Glamour Veil",
+      "category": "status",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 72,
+      "name": "False Terrain",
+      "category": "status",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 73,
+      "name": "Unmake",
+      "category": "offensive",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 74,
+      "name": "Phantom Army",
+      "category": "offensive",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 75,
+      "name": "Phantom Atomic",
+      "category": "offensive",
+      "schools": [
+        "Illusion Magick"
+      ]
+    },
+    {
+      "id": 76,
+      "name": "Dark",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 77,
+      "name": "Darka",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 78,
+      "name": "Darkra",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 79,
+      "name": "Darkga",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 80,
+      "name": "Death",
+      "category": "status",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 81,
+      "name": "Ardor",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 82,
+      "name": "Soul Rend",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 83,
+      "name": "Ex Nihilo",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 84,
+      "name": "Atomic",
+      "category": "offensive",
+      "schools": [
+        "Arcane Magick"
+      ]
+    },
+    {
+      "id": 85,
+      "name": "Chaos Lance",
+      "category": "offensive",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 86,
+      "name": "Fracture",
+      "category": "offensive",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 87,
+      "name": "Chaos Imbuement",
+      "category": "support",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 88,
+      "name": "Cataclysm",
+      "category": "offensive",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 89,
+      "name": "Balefire",
+      "category": "offensive",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 90,
+      "name": "Event Horizon",
+      "category": "offensive",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 91,
+      "name": "Chaos Atomic",
+      "category": "offensive",
+      "schools": [
+        "Chaos Magick"
+      ]
+    },
+    {
+      "id": 92,
+      "name": "Madness",
+      "category": "status",
+      "schools": [
+        "Abyssal Curses"
+      ]
+    },
+    {
+      "id": 93,
+      "name": "Wither",
+      "category": "status",
+      "schools": [
+        "Abyssal Curses"
+      ]
+    },
+    {
+      "id": 94,
+      "name": "Silence of Thought",
+      "category": "status",
+      "schools": [
+        "Abyssal Curses"
+      ]
+    },
+    {
+      "id": 95,
+      "name": "Null Pulse",
+      "category": "offensive",
+      "schools": [
+        "Abyssal Curses"
+      ]
+    },
+    {
+      "id": 96,
+      "name": "Worldrend",
+      "category": "offensive",
+      "schools": [
+        "Abyssal Curses"
+      ]
+    },
+    {
+      "id": 97,
+      "name": "Memory Bleed",
+      "category": "status",
+      "schools": [
+        "Abyssal Curses"
+      ]
+    },
+    {
+      "id": 98,
+      "name": "Chakra Heal",
+      "category": "healing",
+      "schools": [
+        "Yggdrasil Light Magick"
+      ]
+    },
+    {
+      "id": 99,
+      "name": "Aura Shielding",
+      "category": "support",
+      "schools": [
+        "Yggdrasil Light Magick"
+      ]
+    },
+    {
+      "id": 100,
+      "name": "I Am... Recovery Atomic",
+      "category": "healing",
+      "schools": [
+        "White Magick"
+      ]
+    },
+    {
+      "id": 101,
+      "name": "Fire",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 102,
+      "name": "Fira",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 103,
+      "name": "Firaga",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 104,
+      "name": "Blizzard",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 105,
+      "name": "Blizzara",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 106,
+      "name": "Blizzaga",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 107,
+      "name": "Thunder",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 108,
+      "name": "Thundara",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 109,
+      "name": "Thundaga",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 110,
+      "name": "Water",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 111,
+      "name": "Waterga",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 112,
+      "name": "Aqua",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 113,
+      "name": "Aero",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 114,
+      "name": "Aeroga",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 115,
+      "name": "Bio",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 116,
+      "name": "Poison",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 117,
+      "name": "Toxify",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 118,
+      "name": "Blind",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 119,
+      "name": "Blindga",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 120,
+      "name": "Silence",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 121,
+      "name": "Silencega",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 122,
+      "name": "Sleep",
+      "category": "status",
+      "schools": [
+        "Green Magick",
+        "Black Magick",
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 123,
+      "name": "Sleepga",
+      "category": "status",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 124,
+      "name": "Shock",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 125,
+      "name": "Scourge",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 126,
+      "name": "Flare",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 127,
+      "name": "Scathe",
+      "category": "offensive",
+      "schools": [
+        "Black Magick"
+      ]
+    },
+    {
+      "id": 128,
+      "name": "Spirit Vision",
+      "category": "support",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 129,
+      "name": "Whisper",
+      "category": "status",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 130,
+      "name": "Foresight",
+      "category": "support",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 131,
+      "name": "Spirit Chains",
+      "category": "status",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 132,
+      "name": "Soul Step",
+      "category": "support",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 133,
+      "name": "Bind & Banish",
+      "category": "offensive",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 134,
+      "name": "Memoryweaving",
+      "category": "status",
+      "schools": [
+        "Dream Magick"
+      ]
+    },
+    {
+      "id": 135,
+      "name": "Thornbind",
+      "category": "status",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 136,
+      "name": "Verdant Ward",
+      "category": "support",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 137,
+      "name": "Purifying Spores",
+      "category": "cleanse",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 138,
+      "name": "Briar Cage",
+      "category": "status",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 139,
+      "name": "Sylvan Blessing",
+      "category": "healing",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 140,
+      "name": "Stormwhisper",
+      "category": "offensive",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 141,
+      "name": "Wild Growth",
+      "category": "status",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 142,
+      "name": "Living Bulwark",
+      "category": "support",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 143,
+      "name": "Grovecall",
+      "category": "offensive",
+      "schools": [
+        "Nature Magick"
+      ]
+    },
+    {
+      "id": 144,
+      "name": "Rebirth Bloom",
+      "category": "revival",
+      "schools": [
+        "Nature Magick"
+      ]
+    }
+  ]
+}

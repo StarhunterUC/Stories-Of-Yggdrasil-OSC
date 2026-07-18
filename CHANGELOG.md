@@ -1,3 +1,9 @@
+# v0.8.0
+
+- Added Unity Tool v0.5.2 spell ID telemetry, Enemy Mode, Mist and Curse gauges.
+- Added one-second contact invincibility-window synchronization.
+- Added healing-rejection feedback and OSC API v0.8.0 support.
+
 # Changelog
 
 ## 0.7.0

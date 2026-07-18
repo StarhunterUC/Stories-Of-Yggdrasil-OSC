@@ -1,0 +1,97 @@
+{
+  "contract_version": 8,
+  "unity_tool_version": "0.5.2",
+  "parameters": {
+    "SoY_CombatEnabled": {
+      "type": "Bool",
+      "saved": true,
+      "synced": true
+    },
+    "SoY_IsEnemy": {
+      "type": "Bool",
+      "saved": true,
+      "synced": true
+    },
+    "SoY_SpellType": {
+      "type": "Int",
+      "idle": 0,
+      "registry": "SPELL_ID_REGISTRY_v2.json",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "SoY_HealingSourceEnemy": {
+      "type": "Bool",
+      "default": false
+    },
+    "SoY_HealingRejected": {
+      "type": "Bool",
+      "default": false
+    },
+    "SoY_MistCharge": {
+      "type": "Int",
+      "minimum": 0
+    },
+    "SoY_MistMax": {
+      "type": "Int",
+      "default": 3
+    },
+    "SoY_MistPercent": {
+      "type": "Float",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "SoY_DiablosApplicable": {
+      "type": "Bool",
+      "default": false
+    },
+    "SoY_DiablosPercent": {
+      "type": "Float",
+      "minimum": 0.0,
+      "maximum": 1.0
+    }
+  },
+  "spell_schools": [
+    "White Magick",
+    "Green Magick",
+    "Time Magick",
+    "Synergist Magick",
+    "Illusion Magick",
+    "Arcane Magick",
+    "Chaos Magick",
+    "Abyssal Curses",
+    "Yggdrasil Light Magick",
+    "Black Magick",
+    "Dream Magick",
+    "Nature Magick"
+  ],
+  "spell_categories": {
+    "offensive": "SoY Offensive Spell",
+    "healing": "SoY Healing Spell",
+    "revival": "SoY Healing Spell",
+    "cleanse": "SoY Cleanse Spell",
+    "support": "SoY Support Spell",
+    "status": "SoY Status Spell",
+    "utility": "SoY Utility Spell"
+  },
+  "spell_contact_tags": {
+    "spell": "SoY Spell <id>",
+    "ally_caster": "SoY Caster Ally",
+    "enemy_caster": "SoY Caster Enemy"
+  },
+  "enemy_healing_rule": {
+    "reject_when": "target.SoY_IsEnemy == true AND spell.category in [healing, revival] AND source.SoY_HealingSourceEnemy == false",
+    "rejection_parameter": "SoY_HealingRejected"
+  },
+  "receiver_generation": {
+    "school_selectable": true,
+    "duplicate_ids_deduplicated": true,
+    "recommendation": "Install only schools required by the avatar to reduce Contact component count."
+  },
+  "curse_warning_thresholds": [
+    0.25,
+    0.5,
+    0.9,
+    0.98
+  ],
+  "incoming_hit_iframes_seconds": 1.0
+}

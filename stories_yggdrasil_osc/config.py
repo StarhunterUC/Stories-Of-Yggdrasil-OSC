@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 10,
+    "version": 11,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -44,7 +44,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "critical_hp_percent": 0.25,
     },
     "combat": {
-        "global_invulnerability_seconds": 0.35,
+        "global_invulnerability_seconds": 1.0,
         "clear_statuses_when_disabled": True,
         "damage": {"weak": 40, "average": 100, "strong": 200, "critical": 400},
         "block": {
@@ -123,6 +123,15 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "bleeding": "SoY_Bleeding",
         "magic_locked": "SoY_MagicLocked",
         "movement_locked": "SoY_MovementLocked",
+        "enemy_mode": "SoY_IsEnemy",
+        "spell_type": "SoY_SpellType",
+        "healing_source_enemy": "SoY_HealingSourceEnemy",
+        "healing_rejected": "SoY_HealingRejected",
+        "mist_charge": "SoY_MistCharge",
+        "mist_max": "SoY_MistMax",
+        "mist_percent": "SoY_MistPercent",
+        "diablos_applicable": "SoY_DiablosApplicable",
+        "diablos_percent": "SoY_DiablosPercent",
     },
 }
 
@@ -205,7 +214,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 10
+        config["version"] = 11
         sam_cfg = config.setdefault("sam", {})
         if str(sam_cfg.get("base_url") or "").strip().rstrip("/") in {
             "http://127.0.0.1:8766",

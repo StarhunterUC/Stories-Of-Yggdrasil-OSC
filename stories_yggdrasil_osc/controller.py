@@ -66,6 +66,7 @@ class BridgeController:
         self.last_input_at = 0.0
         self.external_detected = False
         self.last_external_parameter = ""
+        self.telemetry: dict[str, Any] = {"enemy_mode": False, "spell_type": 0, "healing_source_enemy": False, "mist_charge": 0, "mist_max": 0, "diablos_applicable": False, "diablos_percent": 0, "hit_event": ""}
         self.reconfigure(config)
 
     def reconfigure(self, config: dict[str, Any]) -> None:
@@ -84,6 +85,13 @@ class BridgeController:
             self.parameters["debuff_freeze"]: ("status", "freeze"),
             self.parameters["debuff_bind"]: ("status", "bind"),
             self.parameters["debuff_bleed"]: ("status", "bleed"),
+            self.parameters.get("enemy_mode", "SoY_IsEnemy"): ("telemetry_bool", "enemy_mode"),
+            self.parameters.get("spell_type", "SoY_SpellType"): ("telemetry_int", "spell_type"),
+            self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
+            self.parameters.get("mist_charge", "SoY_MistCharge"): ("telemetry_int", "mist_charge"),
+            self.parameters.get("mist_max", "SoY_MistMax"): ("telemetry_int", "mist_max"),
+            self.parameters.get("diablos_applicable", "SoY_DiablosApplicable"): ("telemetry_bool", "diablos_applicable"),
+            self.parameters.get("diablos_percent", "SoY_DiablosPercent"): ("telemetry_int", "diablos_percent"),
         }
 
         compat = config.get("avatar_bridge", {})
@@ -178,6 +186,17 @@ class BridgeController:
         if kind == "presence":
             return
 
+        if kind in {"telemetry_bool", "telemetry_int"} and detail:
+            value = _as_bool(raw_value) if kind == "telemetry_bool" else int(float(raw_value or 0))
+            previous = self.telemetry.get(detail)
+            self.telemetry[detail] = value
+            if detail == "spell_type" and int(value or 0) == 0:
+                return
+            if previous != value:
+                snap = self.state.snapshot(now)
+                self._emit(EventResult(True, "telemetry", f"{detail.replace('_', ' ').title()}: {value}", hp_before=snap["current_hp"], hp_after=snap["current_hp"], maximum_hp=snap["maximum_hp"], metadata={detail: value}))
+            return
+
         value = _as_bool(raw_value)
         edge_key = f"{source}:{name}"
         previous = self._last_bool_values.get(edge_key, False)
@@ -228,6 +247,7 @@ class BridgeController:
             return
 
         if kind == "hit" and detail:
+            self.telemetry["hit_event"] = detail
             if source == "external" and self._family_duplicate(detail, now):
                 snap = self.state.snapshot(now)
                 self._emit(EventResult(
