@@ -1,0 +1,65 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build requirements
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Build executable
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean "Stories Of Yggdrasil OSC.spec"
+
+      - name: Assemble release archive
+        shell: pwsh
+        run: |
+          $releaseRoot = "release/Stories Of Yggdrasil OSC"
+          New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
+
+          Copy-Item "dist/Stories Of Yggdrasil OSC/*" $releaseRoot -Recurse -Force
+          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, version.json $releaseRoot -Force
+
+          if (Test-Path "contracts") {
+            Copy-Item "contracts" "$releaseRoot/contracts" -Recurse -Force
+          }
+
+          $zip = "Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip"
+          Compress-Archive -Path $releaseRoot -DestinationPath $zip -Force
+
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  $zip" | Set-Content "$zip.sha256" -Encoding ascii
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip
+            Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip.sha256
