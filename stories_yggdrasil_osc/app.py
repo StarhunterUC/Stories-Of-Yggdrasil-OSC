@@ -96,6 +96,10 @@ class StoriesOSCApp:
         self.recovery_options: list[dict[str, Any]] = []
         self.recovery_by_row: dict[str, dict[str, Any]] = {}
         self.latest_release: dict[str, Any] = {}
+        self.npc_roster: list[dict[str, Any]] = []
+        self.npc_by_name: dict[str, dict[str, Any]] = {}
+        self.enemy_mode_pending_value: bool | None = None
+        self.enemy_mode_pending_until = 0.0
 
         self.sam_sync_due_at = 0.0
         self.sam_sync_inflight = False
@@ -462,6 +466,22 @@ class StoriesOSCApp:
         ttk.Checkbutton(avatar, text="Drive avatar status parameters from Sam.py", variable=self.drive_status_var).grid(row=3, column=2, columnspan=2, sticky="w", padx=20, pady=(5, 16))
         avatar.columnconfigure(1, weight=1)
 
+        npc_card = self._card(body)
+        npc_card.pack(fill=tk.X, pady=10)
+        ttk.Label(npc_card, text="NPC Mode", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", padx=20, pady=(18, 10))
+        npc_cfg = self.config.get("npc_mode", {})
+        self.npc_mode_var = tk.BooleanVar(value=bool(npc_cfg.get("enabled", False)))
+        self.npc_enemy_var = tk.StringVar(value=str(npc_cfg.get("enemy_name") or ""))
+        ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=6)
+        ttk.Label(npc_card, text="NPC roster", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
+        self.npc_enemy_combo = ttk.Combobox(npc_card, textvariable=self.npc_enemy_var, values=(), state="readonly")
+        self.npc_enemy_combo.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
+        ttk.Button(npc_card, text="Refresh Roster", command=self.refresh_npc_roster).grid(row=2, column=3, sticky="e", padx=(0, 20), pady=6)
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy; the static enemy roster is never edited.", style="Muted.Card.TLabel", wraplength=860, justify="left")
+        self.npc_notice_label.grid(row=3, column=0, columnspan=4, sticky="w", padx=20, pady=(6, 16))
+        npc_card.columnconfigure(1, weight=1)
+        npc_card.columnconfigure(2, weight=1)
+
         update_card = self._card(body)
         update_card.pack(fill=tk.X, pady=10)
         ttk.Label(update_card, text="Updates", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(18, 10))
@@ -591,6 +611,12 @@ class StoriesOSCApp:
             is_vrc_trigger = source in {"direct", "external", "binary_contact_bus"}
             self._schedule_sam_sync(result.event, vrc_trigger=is_vrc_trigger)
         elif result.accepted and result.event == "telemetry":
+            if "enemy_mode" in result.metadata:
+                value = bool(result.metadata.get("enemy_mode"))
+                self.enemy_mode_pending_value = value
+                self.enemy_mode_pending_until = time.monotonic() + 4.0
+                self._schedule_sam_sync("enemy_mode", immediate=True, vrc_trigger=True)
+                return
             # Direct Int values come from this avatar's expression-menu buttons
             # and represent local cast/use intent. Binary buses are incoming
             # Contacts received by this avatar. Keep the two directions separate
@@ -659,6 +685,13 @@ class StoriesOSCApp:
         self.recovery_notice_label.configure(text="Refreshing recovery options…")
         self.sam_client.recovery_options()
 
+    def refresh_npc_roster(self) -> None:
+        if not str(self.config.get("sam", {}).get("token") or "").strip():
+            self.npc_notice_label.configure(text="Pair this device with Sam.py before loading the NPC roster.")
+            return
+        self.npc_notice_label.configure(text="Loading the Sam.py enemy roster…")
+        self.sam_client.npc_catalog()
+
     def use_selected_recovery(self) -> None:
         selected = self.recovery_tree.selection()
         if not selected:
@@ -712,6 +745,9 @@ class StoriesOSCApp:
         if bool(cfg.get("sync_combat_toggle", True)):
             payload["combat_enabled"] = bool(snap["combat_enabled"])
         payload.update(dict(self.controller.telemetry))
+        npc_cfg = self.config.get("npc_mode", {})
+        payload["npc_mode"] = bool(npc_cfg.get("enabled", False))
+        payload["npc_enemy_key"] = str(npc_cfg.get("enemy_key") or "")
         for field in (
             "spell_cast_type", "technick_use_type", "item_use_type",
             "spell_type", "technick_type", "item_type",
@@ -755,6 +791,17 @@ class StoriesOSCApp:
             self.sam_sync_inflight = False
             self.sam_status_label.configure(text=event.message, foreground=THEME["red"])
             self._append_activity("SAM ERROR", event.message)
+            return
+        if event.kind == "npc_catalog":
+            rows = event.data.get("enemies") if isinstance(event.data.get("enemies"), list) else []
+            self.npc_roster = [row for row in rows if isinstance(row, dict)]
+            self.npc_by_name = {str(row.get("name") or ""): row for row in self.npc_roster if str(row.get("name") or "")}
+            names = sorted(self.npc_by_name, key=str.casefold)
+            self.npc_enemy_combo.configure(values=names)
+            current = str(self.npc_enemy_var.get() or "")
+            if current not in self.npc_by_name and names:
+                self.npc_enemy_var.set(names[0])
+            self.npc_notice_label.configure(text=f"Loaded {len(names)} enemies from the Sam.py NPC roster.")
             return
         if event.kind == "paired":
             token = str(event.data.get("token") or "")
@@ -878,6 +925,20 @@ class StoriesOSCApp:
             if not parameter:
                 continue
             value = osc_state.get(value_key, False if "applicable" in value_key or "enemy" in value_key else 0)
+            if param_key == "enemy_mode":
+                npc_active = str(state.get("profile_mode") or "player") == "npc"
+                if npc_active:
+                    value = True
+                pending = self.enemy_mode_pending_value
+                if pending is not None:
+                    if bool(value) == bool(pending):
+                        self.enemy_mode_pending_value = None
+                        self.enemy_mode_pending_until = 0.0
+                    elif time.monotonic() < self.enemy_mode_pending_until:
+                        continue
+                    else:
+                        self.enemy_mode_pending_value = None
+                        self.enemy_mode_pending_until = 0.0
             if param_key == "diablos_percent":
                 # The VPS stores 0..100, while the avatar radial Float expects 0..1.
                 value = float(percent_to_avatar_float(value))
@@ -904,8 +965,10 @@ class StoriesOSCApp:
 
         cfg = self.config.get("sam", {})
         if bool(cfg.get("pull_remote_changes", True)) and not (source == "poll" and (self.sam_local_dirty or self.sam_sync_inflight) and not force):
-            self.config["profile"]["name"] = name
-            self.config["profile"]["maximum_hp"] = max_hp
+            npc_active = str(state.get("profile_mode") or "player") == "npc"
+            if not npc_active:
+                self.config["profile"]["name"] = name
+                self.config["profile"]["maximum_hp"] = max_hp
             self.state.reconfigure(
                 maximum_hp=max_hp,
                 damage_values=self.config["combat"]["damage"],
@@ -999,6 +1062,16 @@ class StoriesOSCApp:
             sam = self.config["sam"]
             sam["drive_avatar_health_from_sam"] = bool(self.drive_health_var.get())
             sam["drive_avatar_statuses_from_sam"] = bool(self.drive_status_var.get())
+            npc_cfg = self.config.setdefault("npc_mode", {})
+            npc_enabled = bool(self.npc_mode_var.get())
+            npc_name = str(self.npc_enemy_var.get()).strip()
+            npc_row = self.npc_by_name.get(npc_name, {})
+            npc_key = str(npc_row.get("key") or npc_cfg.get("enemy_key") or "")
+            if npc_enabled and not npc_key:
+                raise ValueError("Select an NPC from the Sam.py roster before enabling NPC Mode.")
+            npc_cfg["enabled"] = npc_enabled
+            npc_cfg["enemy_name"] = npc_name
+            npc_cfg["enemy_key"] = npc_key
             updates = self.config["updates"]
             updates["github_repo"] = str(self.github_repo_var.get()).strip()
             updates["check_on_start"] = bool(self.update_on_start_var.get())
@@ -1015,6 +1088,10 @@ class StoriesOSCApp:
             )
             self.controller.reconfigure(self.config)
             self.sam_client.reconfigure(sam)
+            if npc_enabled:
+                self._send_parameter(self.config["parameters"]["enemy_mode"], True)
+                self.controller.telemetry["enemy_mode"] = True
+            self._schedule_sam_sync("npc_mode", immediate=True, vrc_trigger=False)
             messagebox.showinfo("Settings", "Settings saved and applied.")
         except Exception as exc:
             messagebox.showerror("Settings", f"Could not apply settings.\n\n{exc}")

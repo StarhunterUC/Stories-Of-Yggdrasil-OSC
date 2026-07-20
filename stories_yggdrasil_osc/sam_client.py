@@ -68,6 +68,9 @@ class SamClient:
     def recovery_options(self) -> None:
         self._commands.put(("recovery_options", {}))
 
+    def npc_catalog(self) -> None:
+        self._commands.put(("npc_catalog", {}))
+
     def use_recovery(self, kind: str, name: str) -> None:
         self._commands.put(("use_recovery", {"kind": str(kind), "name": str(name)}))
 
@@ -151,6 +154,9 @@ class SamClient:
         elif command == "recovery_options":
             result = self._request("GET", "/recovery/options", use_auth=True)
             self._emit("recovery_options", True, "Recovery options refreshed.", result, source="recovery_options")
+        elif command == "npc_catalog":
+            result = self._request("GET", "/npc/catalog", use_auth=True)
+            self._emit("npc_catalog", True, "NPC roster refreshed.", result, source="npc_catalog")
         elif command == "use_recovery":
             result = self._request("POST", "/recovery/use", payload=payload, use_auth=True)
             self._emit("recovery_used", True, str(result.get("message") or "Recovery action completed."), result, source="use_recovery")

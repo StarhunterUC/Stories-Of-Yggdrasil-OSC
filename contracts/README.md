@@ -16,3 +16,7 @@ Desktop v0.8.3 sends `SoY_DiablosPercent` as a normalized Float (`0.0` to `1.0`)
 Desktop v0.8.4 marks only Contact-originated actions as `vrc_trigger`. OSC API v0.8.3 applies RP Combat and Dungeon Master gating to those events while leaving non-VRChat Sam.py paths unchanged.
 
 Desktop v0.8.5 sends direct `SoY_SpellType`, `SoY_TechnickType`, and `SoY_ItemType` values as local cast/use events. Binary buses remain incoming target-side events. OSC API v0.8.4 charges MP only to the local caster, validates `Technick: <Name>` separately from magick `Scroll: <Name>`, and never consumes target inventory for an incoming Contact.
+
+- `OSC_CONTRACT_v12.json` — persistent Enemy Mode, friendly harmful-spell filtering, and per-device NPC Mode linked to the Sam.py enemy roster.
+
+Desktop v0.8.6 keeps Stories control parameters active even when the avatar bridge is set to external mode. NPC Mode is stored per linked Desktop device and uses a runtime copy of the selected enemy; it never edits `data/enemies.json`.

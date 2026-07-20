@@ -1,0 +1,27 @@
+{
+  "contract_version": 12,
+  "desktop_version": "0.8.6",
+  "api_version": "0.8.6",
+  "unity_tool_version": "0.5.4",
+  "features": {
+    "enemy_mode_persistence": true,
+    "friendly_harmful_spell_filter": true,
+    "npc_mode": true
+  },
+  "npc_mode": {
+    "catalog_endpoint": "/api/osc/npc/catalog",
+    "sync_fields": [
+      "npc_mode",
+      "npc_enemy_key"
+    ],
+    "runtime_scope": "per linked device",
+    "edits_static_enemy_roster": false
+  },
+  "alignment_rules": {
+    "friendly_harmful_spell_to_friendly": "reject",
+    "friendly_harmful_spell_to_enemy": "allow",
+    "enemy_harmful_spell_to_friendly": "allow",
+    "friendly_healing_to_enemy": "reject",
+    "enemy_healing_to_enemy": "allow"
+  }
+}

@@ -1,4 +1,4 @@
-# Stories Of Yggdrasil OSC v0.8.5
+# Stories Of Yggdrasil OSC v0.8.6
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
 
@@ -112,3 +112,8 @@ The Overview page now shows a Curse Of Diablos bar only when Sam.py reports that
 ## v0.8.3 incoming restorative spell contacts
 
 Decoded spell contacts are now submitted immediately to Sam.py. OSC API v0.8.2 applies healing, revival, and supported cleanse effects to the linked target character and returns the updated HP state to the Desktop.
+
+
+## NPC Mode
+
+In Settings, enable **NPC Mode**, refresh the roster, and select an enemy. The linked Desktop then uses a device-local runtime copy of that enemy's HP, MP, level, type, regions, spells, Technicks, and items. The static Sam.py enemy roster is never modified.

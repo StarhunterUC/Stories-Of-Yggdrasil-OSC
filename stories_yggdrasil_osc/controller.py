@@ -207,11 +207,19 @@ class BridgeController:
 
         mode = self.configured_input_mode
 
-        # The Stories RP Combat menu toggle must work avatar -> desktop in every
-        # input mode. Older builds accidentally ignored it in strict external
-        # mode, while desktop -> avatar still worked.
+        # Stories control parameters must work avatar -> desktop in every input
+        # mode. External mode applies only to legacy health/hit/status inputs;
+        # it must never suppress RP Combat, Enemy Mode, action Ints, or the
+        # incoming Spell/Technick/Item binary buses.
         direct_entry = self._direct_input_by_name.get(name)
-        if direct_entry is not None and direct_entry[0] in {"combat_enabled", "osc_probe"}:
+        always_direct_kinds = {
+            "combat_enabled", "osc_probe",
+            "telemetry_bool", "telemetry_int", "telemetry_percent",
+            "spell_bus_active", "spell_bus_bit",
+            "technick_bus_active", "technick_bus_bit",
+            "item_bus_active", "item_bus_bit",
+        }
+        if direct_entry is not None and direct_entry[0] in always_direct_kinds:
             self._handle_input(name, direct_entry, values[0], t, source="direct")
             return
 

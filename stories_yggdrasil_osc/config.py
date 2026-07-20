@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 12,
+    "version": 13,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -87,6 +87,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "pull_remote_changes": True,
         "drive_avatar_health_from_sam": False,
         "drive_avatar_statuses_from_sam": False,
+    },
+    "npc_mode": {
+        "enabled": False,
+        "enemy_key": "",
+        "enemy_name": "",
     },
     "updates": {
         "github_repo": "",
@@ -243,7 +248,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 12
+        config["version"] = 13
         sam_cfg = config.setdefault("sam", {})
         if str(sam_cfg.get("base_url") or "").strip().rstrip("/") in {
             "http://127.0.0.1:8766",

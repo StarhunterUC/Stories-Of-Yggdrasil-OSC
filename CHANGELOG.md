@@ -1,3 +1,11 @@
+# v0.8.6 — Enemy Alignment & NPC Mode
+
+- Enemy Mode now syncs immediately and is protected from stale poll responses that previously turned it back off.
+- Friendly harmful spell Contacts are rejected when the target is also friendly.
+- Added Desktop NPC Mode with a searchable roster supplied by Sam.py's enemy catalog.
+- NPC Mode uses a per-device runtime copy and never edits `data/enemies.json`.
+- NPC Mode forces Enemy Mode on while active.
+
 # Changelog
 
 ## v0.8.5 — Local action ownership, Technick gate diagnostics, and MP casting
