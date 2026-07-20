@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import heapq
+import math
 import time
 from collections.abc import Callable
 from typing import Any
@@ -60,17 +61,40 @@ class BridgeController:
         self._external_input_by_name: dict[str, tuple[str, str | None]] = {}
         self._last_bool_values: dict[str, bool] = {}
         self._last_family_event_at: dict[str, float] = {}
+        self._last_direct_action_value: dict[str, int] = {}
         self._pending_hits: list[tuple[float, int, PendingHit]] = []
         self._pending_counter = 0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
         self._spell_bus_pending_until = 0.0
-        self._spell_bus_settle_seconds = 0.03
+        self._technick_bus_active = False
+        self._technick_bus_bits = [False] * 8
+        self._technick_bus_pending_until = 0.0
+        self._item_bus_active = False
+        self._item_bus_bits = [False] * 8
+        self._item_bus_pending_until = 0.0
+        self._action_bus_settle_seconds = 0.03
         self.current_avatar_id = ""
         self.last_input_at = 0.0
         self.external_detected = False
         self.last_external_parameter = ""
-        self.telemetry: dict[str, Any] = {"enemy_mode": False, "spell_type": 0, "healing_source_enemy": False, "mist_charge": 0, "mist_max": 0, "diablos_applicable": False, "diablos_percent": 0, "hit_event": ""}
+        self.telemetry: dict[str, Any] = {
+            "enemy_mode": False,
+            # Direct Int parameters are local menu actions from this avatar.
+            # Binary Contact buses are incoming effects received by this avatar.
+            "spell_cast_type": 0,
+            "technick_use_type": 0,
+            "item_use_type": 0,
+            "spell_type": 0,
+            "technick_type": 0,
+            "item_type": 0,
+            "healing_source_enemy": False,
+            "mist_charge": 0,
+            "mist_max": 0,
+            "diablos_applicable": False,
+            "diablos_percent": 0,
+            "hit_event": "",
+        }
         self.reconfigure(config)
 
     def reconfigure(self, config: dict[str, Any]) -> None:
@@ -90,7 +114,7 @@ class BridgeController:
             self.parameters["debuff_bind"]: ("status", "bind"),
             self.parameters["debuff_bleed"]: ("status", "bleed"),
             self.parameters.get("enemy_mode", "SoY_IsEnemy"): ("telemetry_bool", "enemy_mode"),
-            self.parameters.get("spell_type", "SoY_SpellType"): ("telemetry_int", "spell_type"),
+            self.parameters.get("spell_type", "SoY_SpellType"): ("telemetry_int", "spell_cast_type"),
             self.parameters.get("spell_active", "SoY_SpellActive"): ("spell_bus_active", None),
             self.parameters.get("spell_bit_0", "SoY_SpellBit0"): ("spell_bus_bit", "0"),
             self.parameters.get("spell_bit_1", "SoY_SpellBit1"): ("spell_bus_bit", "1"),
@@ -100,11 +124,31 @@ class BridgeController:
             self.parameters.get("spell_bit_5", "SoY_SpellBit5"): ("spell_bus_bit", "5"),
             self.parameters.get("spell_bit_6", "SoY_SpellBit6"): ("spell_bus_bit", "6"),
             self.parameters.get("spell_bit_7", "SoY_SpellBit7"): ("spell_bus_bit", "7"),
+            self.parameters.get("technick_type", "SoY_TechnickType"): ("telemetry_int", "technick_use_type"),
+            self.parameters.get("technick_active", "SoY_TechnickActive"): ("technick_bus_active", None),
+            self.parameters.get("technick_bit_0", "SoY_TechnickBit0"): ("technick_bus_bit", "0"),
+            self.parameters.get("technick_bit_1", "SoY_TechnickBit1"): ("technick_bus_bit", "1"),
+            self.parameters.get("technick_bit_2", "SoY_TechnickBit2"): ("technick_bus_bit", "2"),
+            self.parameters.get("technick_bit_3", "SoY_TechnickBit3"): ("technick_bus_bit", "3"),
+            self.parameters.get("technick_bit_4", "SoY_TechnickBit4"): ("technick_bus_bit", "4"),
+            self.parameters.get("technick_bit_5", "SoY_TechnickBit5"): ("technick_bus_bit", "5"),
+            self.parameters.get("technick_bit_6", "SoY_TechnickBit6"): ("technick_bus_bit", "6"),
+            self.parameters.get("technick_bit_7", "SoY_TechnickBit7"): ("technick_bus_bit", "7"),
+            self.parameters.get("item_type", "SoY_ItemType"): ("telemetry_int", "item_use_type"),
+            self.parameters.get("item_active", "SoY_ItemActive"): ("item_bus_active", None),
+            self.parameters.get("item_bit_0", "SoY_ItemBit0"): ("item_bus_bit", "0"),
+            self.parameters.get("item_bit_1", "SoY_ItemBit1"): ("item_bus_bit", "1"),
+            self.parameters.get("item_bit_2", "SoY_ItemBit2"): ("item_bus_bit", "2"),
+            self.parameters.get("item_bit_3", "SoY_ItemBit3"): ("item_bus_bit", "3"),
+            self.parameters.get("item_bit_4", "SoY_ItemBit4"): ("item_bus_bit", "4"),
+            self.parameters.get("item_bit_5", "SoY_ItemBit5"): ("item_bus_bit", "5"),
+            self.parameters.get("item_bit_6", "SoY_ItemBit6"): ("item_bus_bit", "6"),
+            self.parameters.get("item_bit_7", "SoY_ItemBit7"): ("item_bus_bit", "7"),
             self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
             self.parameters.get("mist_charge", "SoY_MistCharge"): ("telemetry_int", "mist_charge"),
             self.parameters.get("mist_max", "SoY_MistMax"): ("telemetry_int", "mist_max"),
             self.parameters.get("diablos_applicable", "SoY_DiablosApplicable"): ("telemetry_bool", "diablos_applicable"),
-            self.parameters.get("diablos_percent", "SoY_DiablosPercent"): ("telemetry_int", "diablos_percent"),
+            self.parameters.get("diablos_percent", "SoY_DiablosPercent"): ("telemetry_percent", "diablos_percent"),
         }
 
         compat = config.get("avatar_bridge", {})
@@ -202,31 +246,46 @@ class BridgeController:
         if kind == "presence":
             return
 
-        if kind == "spell_bus_bit" and detail is not None:
+        if kind in {"spell_bus_bit", "technick_bus_bit", "item_bus_bit"} and detail is not None:
             try:
                 bit = int(detail)
             except (TypeError, ValueError):
                 return
-            if 0 <= bit < len(self._spell_bus_bits):
-                self._spell_bus_bits[bit] = _as_bool(raw_value)
-                if self._spell_bus_active:
-                    self._spell_bus_pending_until = now + self._spell_bus_settle_seconds
+            bus_name = kind.replace("_bus_bit", "")
+            bits = getattr(self, f"_{bus_name}_bus_bits")
+            if 0 <= bit < len(bits):
+                bits[bit] = _as_bool(raw_value)
+                if bool(getattr(self, f"_{bus_name}_bus_active")):
+                    setattr(self, f"_{bus_name}_bus_pending_until", now + self._action_bus_settle_seconds)
             return
 
-        if kind == "spell_bus_active":
+        if kind in {"spell_bus_active", "technick_bus_active", "item_bus_active"}:
+            bus_name = kind.replace("_bus_active", "")
             active = _as_bool(raw_value)
-            self._spell_bus_active = active
+            setattr(self, f"_{bus_name}_bus_active", active)
             if active:
                 # Contact parameters arrive as separate OSC packets. Give the bit
                 # values a few milliseconds to settle before resolving the ID.
-                self._spell_bus_pending_until = now + self._spell_bus_settle_seconds
+                setattr(self, f"_{bus_name}_bus_pending_until", now + self._action_bus_settle_seconds)
             else:
-                self._spell_bus_pending_until = 0.0
-                self.telemetry["spell_type"] = 0
+                setattr(self, f"_{bus_name}_bus_pending_until", 0.0)
+                self.telemetry[f"{bus_name}_type"] = 0
             return
 
-        if kind in {"telemetry_bool", "telemetry_int"} and detail:
-            value = _as_bool(raw_value) if kind == "telemetry_bool" else int(float(raw_value or 0))
+        if kind in {"telemetry_bool", "telemetry_int", "telemetry_percent"} and detail:
+            if kind == "telemetry_bool":
+                value = _as_bool(raw_value)
+            elif kind == "telemetry_percent":
+                try:
+                    raw = float(raw_value or 0.0)
+                    if not math.isfinite(raw):
+                        raw = 0.0
+                except (TypeError, ValueError):
+                    raw = 0.0
+                # Avatar radial Floats are normalized. Accept old 0..100 senders too.
+                value = int(round(max(0.0, min(100.0, raw if raw > 1.0 else raw * 100.0))))
+            else:
+                value = int(float(raw_value or 0))
             self._set_telemetry(detail, value, now=now, source="direct_parameter")
             return
 
@@ -303,8 +362,27 @@ class BridgeController:
 
     def _set_telemetry(self, detail: str, value: Any, *, now: float, source: str) -> None:
         previous = self.telemetry.get(detail)
+        action_fields = {
+            "spell_cast_type", "technick_use_type", "item_use_type",
+            "spell_type", "technick_type", "item_type",
+        }
+        direct_fields = {"spell_cast_type", "technick_use_type", "item_use_type"}
+        numeric_value = int(value or 0) if detail in action_fields else 0
+
+        # The payload builder clears one-shot telemetry after submission. Keep a
+        # separate raw-parameter latch so a repeated OSC packet while a VRChat
+        # Button is still held cannot charge MP or consume an item twice.
+        if detail in direct_fields:
+            if numeric_value == 0:
+                self._last_direct_action_value.pop(detail, None)
+            elif self._last_direct_action_value.get(detail) == numeric_value:
+                self.telemetry[detail] = numeric_value
+                return
+            else:
+                self._last_direct_action_value[detail] = numeric_value
+
         self.telemetry[detail] = value
-        if detail == "spell_type" and int(value or 0) == 0:
+        if detail in action_fields and numeric_value == 0:
             return
         if previous != value:
             snap = self.state.snapshot(now)
@@ -318,13 +396,14 @@ class BridgeController:
                 metadata={detail: value, "source": source},
             ))
 
-    def _resolve_spell_bus(self, now: float) -> None:
-        if not self._spell_bus_active:
+    def _resolve_action_bus(self, bus_name: str, now: float) -> None:
+        if not bool(getattr(self, f"_{bus_name}_bus_active")):
             return
-        spell_id = sum((1 << bit) for bit, enabled in enumerate(self._spell_bus_bits) if enabled)
-        if spell_id <= 0:
+        bits = getattr(self, f"_{bus_name}_bus_bits")
+        action_id = sum((1 << bit) for bit, enabled in enumerate(bits) if enabled)
+        if action_id <= 0:
             return
-        self._set_telemetry("spell_type", spell_id, now=now, source="binary_contact_bus")
+        self._set_telemetry(f"{bus_name}_type", action_id, now=now, source=f"{bus_name}_binary_contact_bus")
 
     def _mark_external_detected(self, parameter: str) -> None:
         first = not self.external_detected
@@ -390,9 +469,12 @@ class BridgeController:
 
     def tick(self, now: float | None = None) -> None:
         t = time.monotonic() if now is None else float(now)
-        if self._spell_bus_pending_until and self._spell_bus_pending_until <= t:
-            self._spell_bus_pending_until = 0.0
-            self._resolve_spell_bus(t)
+        for bus_name in ("spell", "technick", "item"):
+            pending_attr = f"_{bus_name}_bus_pending_until"
+            pending_until = float(getattr(self, pending_attr))
+            if pending_until and pending_until <= t:
+                setattr(self, pending_attr, 0.0)
+                self._resolve_action_bus(bus_name, t)
         while self._pending_hits and self._pending_hits[0][0] <= t:
             _, _, pending = heapq.heappop(self._pending_hits)
             block_cfg = self.config["combat"]["block"]

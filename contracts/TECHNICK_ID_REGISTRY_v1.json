@@ -1,0 +1,1073 @@
+{
+  "registry_version": 1,
+  "kind": "technick",
+  "id_range": [
+    1,
+    255
+  ],
+  "idle_id": 0,
+  "source": "current live data/licenses.json",
+  "count": 99,
+  "notes": [
+    "IDs are stable for TECHNICK_ID_REGISTRY_v1.",
+    "Sam.py/fight_system remains authoritative for license, scroll, cooldown, target, and implementation checks."
+  ],
+  "id_index": [
+    {
+      "id": 1,
+      "name": "1000 Needles",
+      "classes": [
+        "Archer",
+        "Bushi",
+        "Shikari"
+      ],
+      "description": "Deal 1,000 damage to one foe."
+    },
+    {
+      "id": 2,
+      "name": "Achilles",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Druid",
+        "Machinist",
+        "Monk",
+        "Uhlan",
+        "White Mage"
+      ],
+      "description": "Render one foe vulnerable to an additional element."
+    },
+    {
+      "id": 3,
+      "name": "Addle",
+      "classes": [
+        "Archer",
+        "Foebreaker",
+        "Time Battlemage"
+      ],
+      "description": "Lowers magick power."
+    },
+    {
+      "id": 4,
+      "name": "Aegis Step",
+      "classes": [
+        "Paladin"
+      ],
+      "description": "Defensive repositioning move inspired by shield-and-bow combat. Grants brief evasion and block focus."
+    },
+    {
+      "id": 5,
+      "name": "Arcane Guard",
+      "classes": [
+        "Mystic Knight"
+      ],
+      "description": "Reduces magickal damage taken for 2 turns."
+    },
+    {
+      "id": 6,
+      "name": "Arsenal Quip",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Temporarily copy or manifest the weapon of an owned summon for 7 minutes. Cooldown: 30 seconds."
+    },
+    {
+      "id": 7,
+      "name": "Aurora",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Apply a regeneration effect to self or one ally."
+    },
+    {
+      "id": 8,
+      "name": "Baleful Echo",
+      "classes": [
+        "Chaos Herald"
+      ],
+      "description": "Recasts the last spell with halved MP cost, but with a chance to misfire or backfire."
+    },
+    {
+      "id": 9,
+      "name": "Black Box Revival",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "If the user would be knocked unconscious or killed, one active summon may sacrifice itself to prevent the final blow. Cooldown: 1 week."
+    },
+    {
+      "id": 10,
+      "name": "Blasting Zone",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Fire a concentrated aether blast from the gunblade for heavy damage."
+    },
+    {
+      "id": 11,
+      "name": "Blink Step",
+      "classes": [
+        "Illusionist"
+      ],
+      "description": "Evade next attack and reposition instantly."
+    },
+    {
+      "id": 12,
+      "name": "Blitz",
+      "classes": [
+        "Archer",
+        "Ballistician",
+        "Bushi",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Knight",
+        "Machinist",
+        "Monk",
+        "Shikari",
+        "Uhlan"
+      ],
+      "description": "Deal physical damage to targets in range."
+    },
+    {
+      "id": 13,
+      "name": "Bloodfest",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Instantly load Powder Cartridges for burst damage windows."
+    },
+    {
+      "id": 14,
+      "name": "Bonecrusher",
+      "classes": [
+        "Arcanist",
+        "Bushi",
+        "Demon Hunter",
+        "Monk",
+        "Shikari",
+        "Uhlan"
+      ],
+      "description": "Consume HP to reduce the HP of one foe to 0."
+    },
+    {
+      "id": 15,
+      "name": "Bow Shock",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Release an explosive shockwave that damages enemies over time."
+    },
+    {
+      "id": 16,
+      "name": "Brutal Shell",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Follow Keen Edge with a guarded blast, dealing damage and granting a small barrier."
+    },
+    {
+      "id": 17,
+      "name": "Burst Strike",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Spend one Powder Cartridge to deliver a heavy gunblade explosion."
+    },
+    {
+      "id": 18,
+      "name": "Camouflage",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Increase evasion and reduce incoming physical damage for several turns."
+    },
+    {
+      "id": 19,
+      "name": "Challenge",
+      "classes": [
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Knight",
+        "Paladin"
+      ],
+      "description": "Force a single enemy to attack you for a short time."
+    },
+    {
+      "id": 20,
+      "name": "Charge",
+      "classes": [
+        "Black Mage",
+        "Druid",
+        "Paladin",
+        "Red Battlemage",
+        "Time Battlemage",
+        "White Mage"
+      ],
+      "description": "Restores MP but may fail."
+    },
+    {
+      "id": 21,
+      "name": "Charm",
+      "classes": [
+        "Archer",
+        "Black Mage",
+        "Machinist",
+        "Uhlan"
+      ],
+      "description": "Cause one foe to Confuse friend with foe."
+    },
+    {
+      "id": 22,
+      "name": "Continuation",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Follow certain cartridge attacks with an extra precision blast."
+    },
+    {
+      "id": 23,
+      "name": "Corpse Relay",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Use an active summon as a battlefield relay point for targeting, pressure, and tactical awareness."
+    },
+    {
+      "id": 24,
+      "name": "Counterblow",
+      "classes": [
+        "Bushi",
+        "Chaos Herald",
+        "Demon Hunter",
+        "Foebreaker",
+        "Knight",
+        "Monk",
+        "Mystic Knight",
+        "Paladin",
+        "Revenant Arsenalist",
+        "Shikari",
+        "Uhlan"
+      ],
+      "description": "Take an enemy attack and return it upon the attacker as physical damage."
+    },
+    {
+      "id": 25,
+      "name": "Counterspell",
+      "classes": [
+        "Arcanist",
+        "Black Mage",
+        "Chaos Herald",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Illusionist",
+        "Mystic Knight",
+        "Red Battlemage",
+        "Spiritwalker",
+        "Time Battlemage"
+      ],
+      "description": "Take an enemy attack and return it upon the attacker as magick damage."
+    },
+    {
+      "id": 26,
+      "name": "Cover",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Intercept damage meant for one ally."
+    },
+    {
+      "id": 27,
+      "name": "Cover Breach",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Overload deployed cover to create pushback, smoke, stagger, or heated shrapnel."
+    },
+    {
+      "id": 28,
+      "name": "Covering Fire",
+      "classes": [
+        "Ballistician"
+      ],
+      "description": "Allies gain Dodge advantage; interrupts enemy charges."
+    },
+    {
+      "id": 29,
+      "name": "Dead Man's Trigger",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "When a Loyal Summon is destroyed, it may perform one final action before vanishing."
+    },
+    {
+      "id": 30,
+      "name": "Deathblow",
+      "classes": [
+        "Archer",
+        "Ballistician",
+        "Bushi",
+        "Demon Hunter",
+        "Foebreaker",
+        "Knight",
+        "Shikari"
+      ],
+      "description": "Attempt to instantly slay a target at low HP."
+    },
+    {
+      "id": 31,
+      "name": "Demon Slaughter",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Finish the area combo and load one Powder Cartridge."
+    },
+    {
+      "id": 32,
+      "name": "Demon Slice",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Perform a sweeping gunblade strike against multiple enemies."
+    },
+    {
+      "id": 33,
+      "name": "Despair Gaze",
+      "classes": [
+        "Chaos Herald"
+      ],
+      "description": "Inflicts Fear and causes target to randomly skip turns."
+    },
+    {
+      "id": 34,
+      "name": "Double Down",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Spend two Powder Cartridges to unleash a devastating point-blank detonation."
+    },
+    {
+      "id": 35,
+      "name": "Echo Mark",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Mark one enemy, improving summon tracking and granting a small bonus to Extraction if the marked target dies."
+    },
+    {
+      "id": 36,
+      "name": "Elude",
+      "classes": [
+        "Chaos Herald",
+        "Monk",
+        "Shikari"
+      ],
+      "description": "Defend with a high probability of evading enemy attacks."
+    },
+    {
+      "id": 37,
+      "name": "Entrench",
+      "classes": [
+        "Chaos Herald",
+        "Fae Breaker",
+        "Foebreaker",
+        "Uhlan"
+      ],
+      "description": "Defend and prepare a counterattack, dealing more damage the longer you defend."
+    },
+    {
+      "id": 38,
+      "name": "Erasure",
+      "classes": [
+        "Chaos Herald"
+      ],
+      "description": "Nullifies all active buffs on one enemy, including barrier, regen, and reflect effects."
+    },
+    {
+      "id": 39,
+      "name": "Evade",
+      "classes": [
+        "Archer",
+        "Ballistician",
+        "Bushi",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Illusionist",
+        "Monk",
+        "Shikari",
+        "Spiritwalker",
+        "Time Battlemage"
+      ],
+      "description": "Attempt to evade enemy attacks. Certain attacks cannot be evaded."
+    },
+    {
+      "id": 40,
+      "name": "Expose",
+      "classes": [
+        "Arcanist",
+        "Demon Hunter",
+        "Foebreaker",
+        "Monk",
+        "Uhlan"
+      ],
+      "description": "Lower one foe's defense."
+    },
+    {
+      "id": 41,
+      "name": "Extraction",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "When an enemy or NPC is dead, the user gains three D100 attempts to bind the corpse as a Loyal Summon. Cooldown is 1-2 weeks depending on summon size and DM approval."
+    },
+    {
+      "id": 42,
+      "name": "First Aid",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Demon Hunter",
+        "Druid",
+        "Knight",
+        "Monk",
+        "Paladin",
+        "Shikari",
+        "Spiritwalker",
+        "Uhlan"
+      ],
+      "description": "Restore HP to one HP Critical ally."
+    },
+    {
+      "id": 43,
+      "name": "Foresight",
+      "classes": [
+        "Illusionist"
+      ],
+      "description": "Reveal the target’s intended action next turn, increasing evasion."
+    },
+    {
+      "id": 44,
+      "name": "Gil Toss",
+      "classes": [
+        "Archer",
+        "Bushi",
+        "Machinist",
+        "Shikari"
+      ],
+      "description": "Throw gil to damage all foes in range."
+    },
+    {
+      "id": 45,
+      "name": "Gnashing Fang",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Spend one Powder Cartridge to begin a brutal three-part gunblade chain."
+    },
+    {
+      "id": 46,
+      "name": "Gravebound Reload",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Reload or recharge one firearm by drawing residual energy from a corpse, destroyed summon, or battlefield remnant."
+    },
+    {
+      "id": 47,
+      "name": "Guard",
+      "classes": [
+        "Bushi",
+        "Chaos Herald",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Gunbreaker",
+        "Knight",
+        "Monk",
+        "Mystic Knight",
+        "Paladin",
+        "Red Battlemage",
+        "Revenant Arsenalist",
+        "Spiritwalker",
+        "Uhlan"
+      ],
+      "description": "Reduces physical and magick damage taken from enemy attacks while guarding."
+    },
+    {
+      "id": 48,
+      "name": "Guard Counter",
+      "classes": [
+        "Paladin"
+      ],
+      "description": "Enter a guarding stance, then retaliate after blocking a hit."
+    },
+    {
+      "id": 49,
+      "name": "Heart of Corundum",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Upgrade Heart of Stone with stronger mitigation and emergency healing."
+    },
+    {
+      "id": 50,
+      "name": "Heart of Light",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Reduce magical damage taken by the party for several turns."
+    },
+    {
+      "id": 51,
+      "name": "Heart of Stone",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Grant a defensive barrier to self or one ally."
+    },
+    {
+      "id": 52,
+      "name": "Heavy Guard",
+      "classes": [
+        "Chaos Herald",
+        "Foebreaker",
+        "Knight",
+        "Mystic Knight",
+        "Paladin",
+        "Uhlan"
+      ],
+      "description": "Greatly reduces physical and magick damage taken while guarding, but at a higher ATB cost."
+    },
+    {
+      "id": 53,
+      "name": "Heroic Guard",
+      "classes": [
+        "Knight",
+        "Paladin"
+      ],
+      "description": "Massively reduces physical and magick damage taken while guarding, but at a very high ATB cost."
+    },
+    {
+      "id": 54,
+      "name": "Highwind",
+      "classes": [
+        "Uhlan"
+      ],
+      "description": "Release a catastrophic jump strike, clearing chain gauges. Damage varies by situation."
+    },
+    {
+      "id": 55,
+      "name": "Hollowpoint Round",
+      "classes": [
+        "Ballistician"
+      ],
+      "description": "Fires armor-piercing shot. Ignores partial Defense."
+    },
+    {
+      "id": 56,
+      "name": "Horology",
+      "classes": [
+        "Foebreaker",
+        "Machinist",
+        "Time Battlemage"
+      ],
+      "description": "Deals time-based damage."
+    },
+    {
+      "id": 57,
+      "name": "Infuse",
+      "classes": [
+        "Archer",
+        "Bushi",
+        "Foebreaker",
+        "Knight",
+        "Uhlan"
+      ],
+      "description": "Fully consume user's MP, changing one ally's HP to 10 times that amount."
+    },
+    {
+      "id": 58,
+      "name": "Keen Edge",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Strike with the opening cut of the gunblade combo."
+    },
+    {
+      "id": 59,
+      "name": "Launch",
+      "classes": [
+        "Archer",
+        "Ballistician",
+        "Bushi",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Knight",
+        "Machinist",
+        "Monk",
+        "Mystic Knight",
+        "Shikari",
+        "Uhlan"
+      ],
+      "description": "Attack and launch a staggered target into the air."
+    },
+    {
+      "id": 60,
+      "name": "Libra",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Ballistician",
+        "Bushi",
+        "Chaos Herald",
+        "Demon Hunter",
+        "Druid",
+        "Illusionist",
+        "Machinist",
+        "Monk",
+        "Paladin",
+        "Red Battlemage",
+        "Revenant Arsenalist",
+        "Shikari",
+        "Spiritwalker",
+        "White Mage"
+      ],
+      "description": "Reveal detailed information about targets."
+    },
+    {
+      "id": 61,
+      "name": "Libra II",
+      "classes": [
+        "Arcanist",
+        "Chaos Herald"
+      ],
+      "description": "Reveal detailed information about Chaos Inflicted targets."
+    },
+    {
+      "id": 62,
+      "name": "Light Guard",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Ballistician",
+        "Bushi",
+        "Chaos Herald",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Knight",
+        "Machinist",
+        "Monk",
+        "Mystic Knight",
+        "Paladin",
+        "Red Battlemage",
+        "Revenant Arsenalist",
+        "Shikari",
+        "Spiritwalker",
+        "Time Battlemage",
+        "Uhlan"
+      ],
+      "description": "Slightly reduces physical and magick damage taken while guarding. Low ATB cost."
+    },
+    {
+      "id": 63,
+      "name": "Magick Counter",
+      "classes": [
+        "Mystic Knight"
+      ],
+      "description": "Chance to counter with a random spell when hit by magick."
+    },
+    {
+      "id": 64,
+      "name": "Mediguard",
+      "classes": [
+        "Chaos Herald",
+        "Druid",
+        "Knight",
+        "Monk",
+        "Paladin",
+        "Spiritwalker",
+        "White Mage"
+      ],
+      "description": "Defend while gradually recovering HP."
+    },
+    {
+      "id": 65,
+      "name": "Nebula",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Greatly reduce incoming damage for a short time."
+    },
+    {
+      "id": 66,
+      "name": "NulAll Guard",
+      "classes": [
+        "Arcanist",
+        "Chaos Herald",
+        "Druid",
+        "Fae Breaker",
+        "Mystic Knight",
+        "Paladin",
+        "Red Battlemage",
+        "Spiritwalker",
+        "White Mage"
+      ],
+      "description": "Reduces damage taken while guarding and greatly reduces elemental-attribute damage."
+    },
+    {
+      "id": 67,
+      "name": "Numerology",
+      "classes": [
+        "Arcanist",
+        "Druid",
+        "Machinist",
+        "Monk",
+        "Time Battlemage",
+        "White Mage"
+      ],
+      "description": "Damage increases with hits."
+    },
+    {
+      "id": 68,
+      "name": "Poach",
+      "classes": [
+        "Archer",
+        "Black Mage",
+        "Machinist",
+        "Time Battlemage",
+        "Uhlan"
+      ],
+      "description": "Capture weakened foes for loot."
+    },
+    {
+      "id": 69,
+      "name": "Power Focus",
+      "classes": [
+        "Mystic Knight"
+      ],
+      "description": "Increases next magick's power by 50%."
+    },
+    {
+      "id": 70,
+      "name": "Provoke",
+      "classes": [
+        "Chaos Herald",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Gunbreaker",
+        "Knight",
+        "Monk",
+        "Mystic Knight",
+        "Paladin",
+        "Uhlan"
+      ],
+      "description": "Entices enemies to attack you instead of allies."
+    },
+    {
+      "id": 71,
+      "name": "Revive",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Druid",
+        "Knight",
+        "Monk",
+        "Shikari",
+        "Uhlan"
+      ],
+      "description": "Fully consume user's HP, reviving and fully restoring HP of one KO'd ally."
+    },
+    {
+      "id": 72,
+      "name": "Royal Guard",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Assume a tank stance, increasing threat generated and improving defensive posture."
+    },
+    {
+      "id": 73,
+      "name": "Ruin",
+      "classes": [
+        "Black Mage",
+        "Mystic Knight",
+        "Red Battlemage"
+      ],
+      "description": "Deal non-elemental magick damage to one target."
+    },
+    {
+      "id": 74,
+      "name": "Ruinga",
+      "classes": [
+        "Black Mage",
+        "Mystic Knight",
+        "Red Battlemage"
+      ],
+      "description": "Deal non-elemental magick damage to targets within a wide radius."
+    },
+    {
+      "id": 75,
+      "name": "Savage Claw",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Second strike of the Gnashing Fang chain."
+    },
+    {
+      "id": 76,
+      "name": "Shades of Black",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Bushi",
+        "Druid",
+        "Foebreaker",
+        "Monk",
+        "Shikari",
+        "Uhlan"
+      ],
+      "description": "Cast a random black magick on one foe."
+    },
+    {
+      "id": 77,
+      "name": "Shadow Dance",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Swap places with an owned active summon. Cooldown: 50 seconds."
+    },
+    {
+      "id": 78,
+      "name": "Shear",
+      "classes": [
+        "Archer",
+        "Foebreaker",
+        "Time Battlemage"
+      ],
+      "description": "Lowers magick resistance."
+    },
+    {
+      "id": 79,
+      "name": "Sight Unseeing",
+      "classes": [
+        "Arcanist",
+        "Bushi",
+        "Foebreaker",
+        "Knight",
+        "Monk"
+      ],
+      "description": "Unleash an attack only available when blind."
+    },
+    {
+      "id": 80,
+      "name": "Smite",
+      "classes": [
+        "Bushi",
+        "Demon Hunter",
+        "Fae Breaker",
+        "Foebreaker",
+        "Knight",
+        "Monk",
+        "Mystic Knight",
+        "Uhlan"
+      ],
+      "description": "Deal heavy damage to a launched target about to recover from stagger."
+    },
+    {
+      "id": 81,
+      "name": "Solid Barrel",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Complete the core combo and load one Powder Cartridge."
+    },
+    {
+      "id": 82,
+      "name": "Souleater",
+      "classes": [
+        "Arcanist",
+        "Bushi",
+        "Demon Hunter",
+        "Knight",
+        "Monk",
+        "Paladin",
+        "Red Battlemage",
+        "Uhlan",
+        "White Mage"
+      ],
+      "description": "Consume HP to deal damage to one foe."
+    },
+    {
+      "id": 83,
+      "name": "Soulshred",
+      "classes": [
+        "Chaos Herald"
+      ],
+      "description": "Deals high non-elemental damage and reduces MP of target based on caster's missing HP."
+    },
+    {
+      "id": 84,
+      "name": "Sovereign Fist",
+      "classes": [
+        "Foebreaker",
+        "Monk"
+      ],
+      "description": "Crush foes with a ruinous blow, clearing chain gauges. Damage varies by situation."
+    },
+    {
+      "id": 85,
+      "name": "Spellblade",
+      "classes": [
+        "Mystic Knight"
+      ],
+      "description": "Imbue weapon with a selected element for 3 turns."
+    },
+    {
+      "id": 86,
+      "name": "Stamp",
+      "classes": [
+        "Bushi",
+        "Machinist",
+        "Shikari",
+        "Time Battlemage",
+        "White Mage"
+      ],
+      "description": "Transfers status effects."
+    },
+    {
+      "id": 87,
+      "name": "Steal",
+      "classes": [
+        "Archer",
+        "Ballistician",
+        "Black Mage",
+        "Chaos Herald",
+        "Illusionist",
+        "Machinist",
+        "Red Battlemage",
+        "Revenant Arsenalist",
+        "Shikari"
+      ],
+      "description": "Steal from one foe."
+    },
+    {
+      "id": 88,
+      "name": "Steelguard",
+      "classes": [
+        "Chaos Herald",
+        "Fae Breaker",
+        "Foebreaker",
+        "Knight",
+        "Mystic Knight",
+        "Paladin"
+      ],
+      "description": "Reduces damage taken while guarding. Guard becomes more effective each time damage is taken."
+    },
+    {
+      "id": 89,
+      "name": "Summon Fusion",
+      "classes": [
+        "Revenant Arsenalist"
+      ],
+      "description": "Temporarily resonate with an owned Loyal Summon to use part of that summon’s abilities. Cooldown: at least 4 days."
+    },
+    {
+      "id": 90,
+      "name": "Superbolide",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Drop to critical HP to become nearly immune to damage for a short duration."
+    },
+    {
+      "id": 91,
+      "name": "Suppressive Burst",
+      "classes": [
+        "Ballistician"
+      ],
+      "description": "Reduces enemy movement and disables reactions for 1 turn."
+    },
+    {
+      "id": 92,
+      "name": "Telekinesis",
+      "classes": [
+        "Black Mage",
+        "Knight",
+        "Shikari"
+      ],
+      "description": "Allow melee weapons to hit distant targets."
+    },
+    {
+      "id": 93,
+      "name": "Traveler",
+      "classes": [
+        "Arcanist",
+        "Archer",
+        "Druid",
+        "Foebreaker",
+        "Machinist",
+        "Monk",
+        "Shikari"
+      ],
+      "description": "deals fixed damage to an enemy and enemies in range in its vicinity based on the number of steps currently taken. After being used, or after 1000 steps, the counter resets.."
+    },
+    {
+      "id": 94,
+      "name": "Trick Reload",
+      "classes": [
+        "Ballistician"
+      ],
+      "description": "Reloads and dodges simultaneously. Grants temporary Evasion."
+    },
+    {
+      "id": 95,
+      "name": "Vein Tap",
+      "classes": [
+        "Illusionist"
+      ],
+      "description": "Restores MP equal to the number of active illusions when cast."
+    },
+    {
+      "id": 96,
+      "name": "Vendetta",
+      "classes": [
+        "Demon Hunter",
+        "Foebreaker",
+        "Knight",
+        "Uhlan"
+      ],
+      "description": "Counterattack after defending, dealing more damage the more you are attacked."
+    },
+    {
+      "id": 97,
+      "name": "Vital Shot",
+      "classes": [
+        "Ballistician"
+      ],
+      "description": "Target weak point to deal bonus damage and apply Bleed."
+    },
+    {
+      "id": 98,
+      "name": "Wicked Talon",
+      "classes": [
+        "Gunbreaker"
+      ],
+      "description": "Final strike of the Gnashing Fang chain."
+    },
+    {
+      "id": 99,
+      "name": "Wither",
+      "classes": [
+        "Arcanist",
+        "Foebreaker",
+        "Monk",
+        "Uhlan"
+      ],
+      "description": "Lower one foe's strength."
+    }
+  ]
+}

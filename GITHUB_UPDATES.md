@@ -6,16 +6,16 @@ Repository:
 StarhunterUC/Stories-Of-Yggdrasil-OSC
 ```
 
-For v0.8.1:
+For v0.8.5:
 
 ```powershell
 git status
 git add .
-git commit -m "Stories Of Yggdrasil OSC v0.8.1"
+git commit -m "Stories Of Yggdrasil OSC v0.8.5"
 git push origin main
 
-git tag -a v0.8.1 -m "Stories Of Yggdrasil OSC v0.8.1"
-git push origin v0.8.1
+git tag -a v0.8.5 -m "Stories Of Yggdrasil OSC v0.8.5"
+git push origin v0.8.5
 ```
 
 The release workflow runs the test suite, builds the Windows executable, and publishes the ZIP plus SHA-256 file.

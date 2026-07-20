@@ -46,6 +46,32 @@ class ControllerTests(unittest.TestCase):
         self.assertFalse(self.state.combat_enabled)
 
 
+    def test_direct_spell_int_is_local_cast_not_incoming_contact(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_SpellType", (2,), 4.50)
+        self.assertEqual(self.controller.telemetry["spell_cast_type"], 2)
+        self.assertEqual(self.controller.telemetry["spell_type"], 0)
+        cast_events = [event for event in self.events if event.metadata.get("spell_cast_type") == 2]
+        self.assertEqual(len(cast_events), 1)
+
+    def test_direct_spell_button_deduplicates_until_zero_reset(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_SpellType", (2,), 4.51)
+        self.controller.telemetry["spell_cast_type"] = 0  # payload consumed it
+        self.controller.handle_osc("/avatar/parameters/SoY_SpellType", (2,), 4.52)
+        events = [event for event in self.events if event.metadata.get("spell_cast_type") == 2]
+        self.assertEqual(len(events), 1)
+        self.controller.handle_osc("/avatar/parameters/SoY_SpellType", (0,), 4.53)
+        self.controller.handle_osc("/avatar/parameters/SoY_SpellType", (2,), 4.54)
+        events = [event for event in self.events if event.metadata.get("spell_cast_type") == 2]
+        self.assertEqual(len(events), 2)
+
+    def test_direct_technick_and_item_ints_are_local_use(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_TechnickType", (1,), 4.60)
+        self.controller.handle_osc("/avatar/parameters/SoY_ItemType", (3,), 4.70)
+        self.assertEqual(self.controller.telemetry["technick_use_type"], 1)
+        self.assertEqual(self.controller.telemetry["item_use_type"], 3)
+        self.assertEqual(self.controller.telemetry["technick_type"], 0)
+        self.assertEqual(self.controller.telemetry["item_type"], 0)
+
     def test_binary_spell_bus_resolves_curaja_id_four(self):
         self.controller.handle_osc("/avatar/parameters/SoY_SpellBit2", (True,), 5.00)
         self.controller.handle_osc("/avatar/parameters/SoY_SpellActive", (True,), 5.01)
@@ -62,6 +88,19 @@ class ControllerTests(unittest.TestCase):
         self.controller.tick(6.06)
         self.assertEqual(self.controller.telemetry["spell_type"], 127)
 
+    def test_binary_technick_bus_resolves_id_five(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_TechnickBit0", (True,), 6.50)
+        self.controller.handle_osc("/avatar/parameters/SoY_TechnickBit2", (True,), 6.51)
+        self.controller.handle_osc("/avatar/parameters/SoY_TechnickActive", (True,), 6.52)
+        self.controller.tick(6.56)
+        self.assertEqual(self.controller.telemetry["technick_type"], 5)
+
+    def test_binary_item_bus_resolves_id_four(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_ItemBit2", (True,), 6.60)
+        self.controller.handle_osc("/avatar/parameters/SoY_ItemActive", (True,), 6.61)
+        self.controller.tick(6.65)
+        self.assertEqual(self.controller.telemetry["item_type"], 4)
+
     def test_binary_spell_bus_clears_when_contact_exits(self):
         self.controller.handle_osc("/avatar/parameters/SoY_SpellBit0", (True,), 7.00)
         self.controller.handle_osc("/avatar/parameters/SoY_SpellActive", (True,), 7.01)
@@ -69,6 +108,14 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.telemetry["spell_type"], 1)
         self.controller.handle_osc("/avatar/parameters/SoY_SpellActive", (False,), 7.10)
         self.assertEqual(self.controller.telemetry["spell_type"], 0)
+
+    def test_diablos_radial_float_converts_to_percent(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_DiablosPercent", (0.25,), 8.0)
+        self.assertEqual(self.controller.telemetry["diablos_percent"], 25)
+
+    def test_diablos_legacy_percent_is_clamped(self):
+        self.controller.handle_osc("/avatar/parameters/SoY_DiablosPercent", (150.0,), 8.1)
+        self.assertEqual(self.controller.telemetry["diablos_percent"], 100)
 
     def test_contact_family_deduplicates(self):
         self.controller.handle_osc("/avatar/parameters/Hit By Average Attack T0", (True,), 4.0)

@@ -21,6 +21,7 @@ from .controller import BridgeController
 from .models import EventResult
 from .osc_service import OSCEvent, OSCService
 from .sam_client import SamClient, SamEvent
+from .telemetry import coerce_percent, diablos_warning_label, percent_to_avatar_float
 from .update_manager import UpdateEvent, UpdateManager
 
 THEME = {
@@ -102,6 +103,7 @@ class StoriesOSCApp:
         self.sam_client_seq = 0
         self.sam_client_session = uuid.uuid4().hex
         self.sam_last_event_name = "startup"
+        self.sam_last_event_vrc_trigger = False
         self.sam_last_revision = -1
         self.sam_last_dm_gate_active = False
         self.sam_last_rejection_at = 0.0
@@ -178,6 +180,9 @@ class StoriesOSCApp:
         style.map("Nav.TButton", background=[("active", THEME["panel2"])], foreground=[("active", THEME["gold2"])])
         style.configure("HP.Horizontal.TProgressbar", troughcolor="#28312c", background=THEME["green"], lightcolor=THEME["green"], darkcolor=THEME["green"], bordercolor=THEME["border"])
         style.configure("MP.Horizontal.TProgressbar", troughcolor="#242c36", background=THEME["blue"], lightcolor=THEME["blue"], darkcolor=THEME["blue"], bordercolor=THEME["border"])
+        style.configure("Diablos.Horizontal.TProgressbar", troughcolor="#2d1117", background="#b11f37", lightcolor="#b11f37", darkcolor="#7d1025", bordercolor=THEME["border"])
+        style.configure("DiablosWarn.Horizontal.TProgressbar", troughcolor="#331017", background="#e05a37", lightcolor="#e05a37", darkcolor="#a53422", bordercolor=THEME["border"])
+        style.configure("DiablosCritical.Horizontal.TProgressbar", troughcolor="#35080f", background="#ff153d", lightcolor="#ff153d", darkcolor="#b00025", bordercolor=THEME["border"])
         style.configure("Treeview", background=THEME["panel2"], fieldbackground=THEME["panel2"], foreground=THEME["text"], rowheight=28, bordercolor=THEME["border"])
         style.configure("Treeview.Heading", background=THEME["panel3"], foreground=THEME["gold2"], font=("Segoe UI Semibold", 9))
         style.map("Treeview", background=[("selected", "#374654")])
@@ -286,7 +291,19 @@ class StoriesOSCApp:
         self.mp_bar = ttk.Progressbar(left, maximum=100, value=0, style="MP.Horizontal.TProgressbar")
         self.mp_bar.pack(fill=tk.X, padx=22, pady=(6, 18), ipady=7)
 
+        self.diablos_frame = ttk.Frame(left, style="CardInner.TFrame")
+        diablos_head = ttk.Frame(self.diablos_frame, style="CardInner.TFrame")
+        diablos_head.pack(fill=tk.X)
+        ttk.Label(diablos_head, text="Curse Of Diablos", style="BigValue.TLabel").pack(side=tk.LEFT)
+        self.diablos_value_label = ttk.Label(diablos_head, text="0%", style="Muted.Card.TLabel")
+        self.diablos_value_label.pack(side=tk.RIGHT)
+        self.diablos_bar = ttk.Progressbar(self.diablos_frame, maximum=100, value=0, style="Diablos.Horizontal.TProgressbar")
+        self.diablos_bar.pack(fill=tk.X, pady=(6, 5), ipady=6)
+        self.diablos_warning_label = ttk.Label(self.diablos_frame, text="Stable", style="Muted.Card.TLabel")
+        self.diablos_warning_label.pack(anchor="w", pady=(0, 12))
+
         toggle_row = ttk.Frame(left, style="CardInner.TFrame")
+        self.combat_toggle_row = toggle_row
         toggle_row.pack(fill=tk.X, padx=22, pady=(0, 16))
         ttk.Label(toggle_row, text="RP Combat", style="CardTitle.TLabel").pack(side=tk.LEFT)
         self.combat_var = tk.BooleanVar(value=self.state.combat_enabled)
@@ -570,7 +587,26 @@ class StoriesOSCApp:
             "status_applied", "status_expired", "statuses_cleared", "external_status_active",
             "external_status_cleared", "combat_toggle",
         }:
-            self._schedule_sam_sync(result.event)
+            source = str(result.metadata.get("source") or "")
+            is_vrc_trigger = source in {"direct", "external", "binary_contact_bus"}
+            self._schedule_sam_sync(result.event, vrc_trigger=is_vrc_trigger)
+        elif result.accepted and result.event == "telemetry":
+            # Direct Int values come from this avatar's expression-menu buttons
+            # and represent local cast/use intent. Binary buses are incoming
+            # Contacts received by this avatar. Keep the two directions separate
+            # so Sam.py never charges the target's MP or consumes the target's item.
+            for field, event_name in (
+                ("spell_cast_type", "spell_cast"),
+                ("technick_use_type", "technick_use"),
+                ("item_use_type", "item_use"),
+                ("spell_type", "spell_contact"),
+                ("technick_type", "technick_contact"),
+                ("item_type", "item_contact"),
+            ):
+                action_id = int(result.metadata.get(field, 0) or 0)
+                if action_id > 0:
+                    self._schedule_sam_sync(event_name, immediate=True, vrc_trigger=True)
+                    break
 
     # ------------------------------------------------------------------
     # Sam.py link and recovery
@@ -641,12 +677,19 @@ class StoriesOSCApp:
         self.recovery_notice_label.configure(text=f"Using {name}…")
         self.sam_client.use_recovery(kind, name)
 
-    def _schedule_sam_sync(self, event_name: str, *, immediate: bool = False) -> None:
+    def _schedule_sam_sync(
+        self,
+        event_name: str,
+        *,
+        immediate: bool = False,
+        vrc_trigger: bool = False,
+    ) -> None:
         cfg = self.config.get("sam", {})
         if not bool(cfg.get("enabled", False)) or not str(cfg.get("token") or "").strip():
             return
         self.sam_local_dirty = True
         self.sam_last_event_name = str(event_name or "state_change")
+        self.sam_last_event_vrc_trigger = bool(vrc_trigger)
         delay = 0.0 if immediate else max(0.05, float(cfg.get("push_debounce_seconds", 0.30)))
         self.sam_sync_due_at = time.monotonic() + delay
 
@@ -658,6 +701,7 @@ class StoriesOSCApp:
             "client_seq": self.sam_client_seq,
             "client_session": self.sam_client_session,
             "client_event": self.sam_last_event_name,
+            "vrc_trigger": bool(self.sam_last_event_vrc_trigger),
             "avatar_id": self.last_avatar_id,
             "source_mode": self.controller.active_input_mode,
             "client_drives_remote_statuses": bool(cfg.get("drive_avatar_statuses_from_sam", False)),
@@ -668,8 +712,18 @@ class StoriesOSCApp:
         if bool(cfg.get("sync_combat_toggle", True)):
             payload["combat_enabled"] = bool(snap["combat_enabled"])
         payload.update(dict(self.controller.telemetry))
-        if int(payload.get("spell_type", 0) or 0) == 0:
-            payload.pop("spell_type", None)
+        for field in (
+            "spell_cast_type", "technick_use_type", "item_use_type",
+            "spell_type", "technick_type", "item_type",
+        ):
+            action_id = int(payload.get(field, 0) or 0)
+            if action_id <= 0:
+                payload.pop(field, None)
+            else:
+                # Contact actions are one-shot events. Keeping a value latched
+                # would repeat it during later unrelated state synchronization.
+                self.controller.telemetry[field] = 0
+        self.sam_last_event_vrc_trigger = False
         hit_event = str(payload.get("hit_event") or "")
         if hit_event:
             self.controller.telemetry["hit_event"] = ""
@@ -749,6 +803,21 @@ class StoriesOSCApp:
                 sync_result = state.get("sync_result") if isinstance(state.get("sync_result"), dict) else {}
                 rejected = bool(sync_result) and not bool(sync_result.get("accepted", True))
                 self._apply_sam_state(state, source=event.source, force=event.source in {"sync", "pull"} or rejected)
+                for result_key, accepted_label, info_label, fallback in (
+                    ("spell_cast_result", "CAST", "CAST INFO", "Spell cast processed."),
+                    ("technick_use_result", "TECHNICK", "TECHNICK INFO", "Technick use processed."),
+                    ("item_use_result", "ITEM", "ITEM INFO", "Item use processed."),
+                    ("spell_result", "SPELL", "SPELL INFO", "Incoming spell contact processed."),
+                    ("technick_result", "TECHNICK", "TECHNICK INFO", "Incoming Technick contact identified."),
+                    ("item_result", "ITEM", "ITEM INFO", "Incoming item contact identified."),
+                ):
+                    action_result = sync_result.get(result_key) if isinstance(sync_result.get(result_key), dict) else {}
+                    if action_result:
+                        action_message = str(action_result.get("message") or fallback)
+                        self._append_activity(
+                            accepted_label if bool(action_result.get("applied", False)) else info_label,
+                            action_message,
+                        )
                 if rejected:
                     warning = str(sync_result.get("message") or "No Active DM's - No Hit Registered")
                     self._append_activity("WARNING", warning)
@@ -806,8 +875,18 @@ class StoriesOSCApp:
         osc_state = state.get("osc") if isinstance(state.get("osc"), dict) else {}
         for param_key, value_key in (("enemy_mode", "enemy_mode"), ("mist_charge", "mist_charge"), ("mist_max", "mist_max"), ("mist_percent", "mist_percent"), ("diablos_applicable", "diablos_applicable"), ("diablos_percent", "diablos_percent")):
             parameter = str(self.config.get("parameters", {}).get(param_key) or "").strip()
-            if parameter:
-                self._send_parameter(parameter, osc_state.get(value_key, False if "applicable" in value_key or "enemy" in value_key else 0))
+            if not parameter:
+                continue
+            value = osc_state.get(value_key, False if "applicable" in value_key or "enemy" in value_key else 0)
+            if param_key == "diablos_percent":
+                # The VPS stores 0..100, while the avatar radial Float expects 0..1.
+                value = float(percent_to_avatar_float(value))
+            elif param_key == "mist_percent":
+                try:
+                    value = max(0.0, min(1.0, float(value)))
+                except (TypeError, ValueError):
+                    value = 0.0
+            self._send_parameter(parameter, value)
         rejected_heal = bool(osc_state.get("healing_rejected", False))
         if rejected_heal:
             parameter = str(self.config.get("parameters", {}).get("healing_rejected") or "").strip()
@@ -958,6 +1037,22 @@ class StoriesOSCApp:
         mp_ratio = self.remote_mp / self.remote_max_mp if self.remote_max_mp else 0.0
         self.mp_bar.configure(value=max(0.0, min(100.0, mp_ratio * 100.0)))
         self.mp_value_label.configure(text=f"{self.remote_mp:,} / {self.remote_max_mp:,}")
+
+        osc_state = self.remote_state.get("osc") if isinstance(self.remote_state.get("osc"), dict) else {}
+        diablos_applicable = bool(osc_state.get("diablos_applicable", False))
+        diablos_percent = coerce_percent(osc_state.get("diablos_percent", 0))
+        if diablos_applicable:
+            if not self.diablos_frame.winfo_manager():
+                self.diablos_frame.pack(fill=tk.X, padx=22, pady=(0, 10), before=self.combat_toggle_row)
+            self.diablos_bar.configure(value=diablos_percent)
+            self.diablos_value_label.configure(text=f"{diablos_percent:.0f}%")
+            warning_text = diablos_warning_label(diablos_percent)
+            self.diablos_warning_label.configure(text=warning_text, foreground=THEME["red"] if diablos_percent >= 25 else THEME["muted"])
+            style_name = "DiablosCritical.Horizontal.TProgressbar" if diablos_percent >= 90 else "DiablosWarn.Horizontal.TProgressbar" if diablos_percent >= 25 else "Diablos.Horizontal.TProgressbar"
+            self.diablos_bar.configure(style=style_name)
+        elif self.diablos_frame.winfo_manager():
+            self.diablos_frame.pack_forget()
+
         self.combat_var.set(bool(snap["combat_enabled"]))
 
         char = self.remote_character

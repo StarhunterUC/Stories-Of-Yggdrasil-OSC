@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 11,
+    "version": 12,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -134,6 +134,26 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "spell_bit_5": "SoY_SpellBit5",
         "spell_bit_6": "SoY_SpellBit6",
         "spell_bit_7": "SoY_SpellBit7",
+        "technick_type": "SoY_TechnickType",
+        "technick_active": "SoY_TechnickActive",
+        "technick_bit_0": "SoY_TechnickBit0",
+        "technick_bit_1": "SoY_TechnickBit1",
+        "technick_bit_2": "SoY_TechnickBit2",
+        "technick_bit_3": "SoY_TechnickBit3",
+        "technick_bit_4": "SoY_TechnickBit4",
+        "technick_bit_5": "SoY_TechnickBit5",
+        "technick_bit_6": "SoY_TechnickBit6",
+        "technick_bit_7": "SoY_TechnickBit7",
+        "item_type": "SoY_ItemType",
+        "item_active": "SoY_ItemActive",
+        "item_bit_0": "SoY_ItemBit0",
+        "item_bit_1": "SoY_ItemBit1",
+        "item_bit_2": "SoY_ItemBit2",
+        "item_bit_3": "SoY_ItemBit3",
+        "item_bit_4": "SoY_ItemBit4",
+        "item_bit_5": "SoY_ItemBit5",
+        "item_bit_6": "SoY_ItemBit6",
+        "item_bit_7": "SoY_ItemBit7",
         "healing_source_enemy": "SoY_HealingSourceEnemy",
         "healing_rejected": "SoY_HealingRejected",
         "mist_charge": "SoY_MistCharge",
@@ -223,7 +243,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 11
+        config["version"] = 12
         sam_cfg = config.setdefault("sam", {})
         if str(sam_cfg.get("base_url") or "").strip().rstrip("/") in {
             "http://127.0.0.1:8766",

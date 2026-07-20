@@ -1,0 +1,352 @@
+{
+  "contract_version": 10,
+  "unity_tool_version": "0.5.4",
+  "desktop_minimum": "0.8.4",
+  "vps_api_minimum": "0.8.3",
+  "parameters": {
+    "SoY_CombatEnabled": {
+      "type": "Bool",
+      "saved": true,
+      "synced": true
+    },
+    "SoY_IsEnemy": {
+      "type": "Bool",
+      "saved": true,
+      "synced": true
+    },
+    "SoY_SpellType": {
+      "type": "Int",
+      "idle": 0,
+      "registry": "SPELL_ID_REGISTRY_v2.json",
+      "minimum": 0,
+      "maximum": 255,
+      "owner": "Desktop reconstruction / direct-value SDK compatibility"
+    },
+    "SoY_SpellActive": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Active"
+    },
+    "SoY_SpellBit0": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 0",
+      "weight": 1
+    },
+    "SoY_SpellBit1": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 1",
+      "weight": 2
+    },
+    "SoY_SpellBit2": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 2",
+      "weight": 4
+    },
+    "SoY_SpellBit3": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 3",
+      "weight": 8
+    },
+    "SoY_SpellBit4": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 4",
+      "weight": 16
+    },
+    "SoY_SpellBit5": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 5",
+      "weight": 32
+    },
+    "SoY_SpellBit6": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 6",
+      "weight": 64
+    },
+    "SoY_SpellBit7": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Spell Bit 7",
+      "weight": 128
+    },
+    "SoY_HealingSourceEnemy": {
+      "type": "Bool",
+      "default": false
+    },
+    "SoY_HealingRejected": {
+      "type": "Bool",
+      "default": false
+    },
+    "SoY_MistCharge": {
+      "type": "Int",
+      "minimum": 0
+    },
+    "SoY_MistMax": {
+      "type": "Int",
+      "default": 3
+    },
+    "SoY_MistPercent": {
+      "type": "Float",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "SoY_DiablosApplicable": {
+      "type": "Bool",
+      "default": false
+    },
+    "SoY_DiablosPercent": {
+      "type": "Float",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "SoY_TechnickType": {
+      "type": "Int",
+      "idle": 0,
+      "registry": "TECHNICK_ID_REGISTRY_v1.json",
+      "minimum": 0,
+      "maximum": 255,
+      "owner": "Desktop reconstruction"
+    },
+    "SoY_TechnickActive": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Active"
+    },
+    "SoY_TechnickBit0": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 0",
+      "weight": 1
+    },
+    "SoY_TechnickBit1": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 1",
+      "weight": 2
+    },
+    "SoY_TechnickBit2": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 2",
+      "weight": 4
+    },
+    "SoY_TechnickBit3": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 3",
+      "weight": 8
+    },
+    "SoY_TechnickBit4": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 4",
+      "weight": 16
+    },
+    "SoY_TechnickBit5": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 5",
+      "weight": 32
+    },
+    "SoY_TechnickBit6": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 6",
+      "weight": 64
+    },
+    "SoY_TechnickBit7": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Technick Bit 7",
+      "weight": 128
+    },
+    "SoY_ItemType": {
+      "type": "Int",
+      "idle": 0,
+      "registry": "ITEM_ID_REGISTRY_v1.json",
+      "minimum": 0,
+      "maximum": 255,
+      "owner": "Desktop reconstruction"
+    },
+    "SoY_ItemActive": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Active"
+    },
+    "SoY_ItemBit0": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 0",
+      "weight": 1
+    },
+    "SoY_ItemBit1": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 1",
+      "weight": 2
+    },
+    "SoY_ItemBit2": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 2",
+      "weight": 4
+    },
+    "SoY_ItemBit3": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 3",
+      "weight": 8
+    },
+    "SoY_ItemBit4": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 4",
+      "weight": 16
+    },
+    "SoY_ItemBit5": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 5",
+      "weight": 32
+    },
+    "SoY_ItemBit6": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 6",
+      "weight": 64
+    },
+    "SoY_ItemBit7": {
+      "type": "Bool",
+      "saved": false,
+      "synced": false,
+      "contact_tag": "SoY Item Bit 7",
+      "weight": 128
+    }
+  },
+  "spell_encoding": {
+    "mode": "binary_contact_bus",
+    "active_tag": "SoY Spell Active",
+    "bit_tag_template": "SoY Spell Bit <0-7>",
+    "decode_formula": "spell_id = sum(SoY_SpellBit[i] ? (1 << i) : 0)",
+    "settle_seconds": 0.03,
+    "valid_ids": "1-255",
+    "idle_id": 0,
+    "reason": "Legacy VRChat SDK Constant Int receivers always write 1 and do not expose a custom Value field."
+  },
+  "spell_sender_tags": {
+    "required": [
+      "SoY Spell Active",
+      "one tag for every set ID bit",
+      "SoY Caster Ally or SoY Caster Enemy",
+      "one spell category tag"
+    ],
+    "maximum_tags_for_id_255": 11,
+    "contact_tag_limit": 16
+  },
+  "spell_receiver_generation": {
+    "spell_bus_receivers": 9,
+    "caster_alignment_receivers": 1,
+    "all_spell_schools_supported": true,
+    "school_specific_receiver_sets_removed": true,
+    "legacy_repair_button": "REPAIR v0.5.1 / v0.5.2 SPELL CONTACTS"
+  },
+  "spell_categories": {
+    "offensive": "SoY Offensive Spell",
+    "healing": "SoY Healing Spell",
+    "revival": "SoY Healing Spell",
+    "cleanse": "SoY Cleanse Spell",
+    "support": "SoY Support Spell",
+    "status": "SoY Status Spell",
+    "utility": "SoY Utility Spell"
+  },
+  "enemy_healing_rule": {
+    "reject_when": "target.SoY_IsEnemy == true AND spell.category in [healing, revival] AND source.SoY_HealingSourceEnemy == false",
+    "rejection_parameter": "SoY_HealingRejected"
+  },
+  "parameter_memory": {
+    "spell_bus_synced_bits": 0,
+    "technick_bus_synced_bits": 0,
+    "item_bus_synced_bits": 0,
+    "unsynced_bus_parameters": 27,
+    "note": "Three 9-Bool unsynced buses do not consume the 256-bit synchronized parameter budget."
+  },
+  "curse_warning_thresholds": [
+    0.25,
+    0.5,
+    0.9,
+    0.98
+  ],
+  "incoming_hit_iframes_seconds": 1.0,
+  "action_gating": {
+    "scope": "VRChat-triggered OSC actions only",
+    "blocked_when": [
+      "SoY_CombatEnabled is false",
+      "Dungeon Master Gate is inactive"
+    ],
+    "blocked_actions": [
+      "spell_contact",
+      "technick_contact",
+      "item_contact",
+      "incoming damage",
+      "incoming harmful status"
+    ],
+    "unaffected": [
+      "Discord combat",
+      "Player Panel actions",
+      "Admin Panel actions",
+      "Desktop Recovery page",
+      "normal Sam.py commands"
+    ]
+  },
+  "technick_encoding": {
+    "mode": "binary_contact_bus",
+    "active_tag": "SoY Technick Active",
+    "bit_tag_template": "SoY Technick Bit <0-7>",
+    "decode_formula": "technick_id = sum(SoY_TechnickBit[i] ? (1 << i) : 0)",
+    "registry": "TECHNICK_ID_REGISTRY_v1.json",
+    "valid_ids": "1-255",
+    "idle_id": 0
+  },
+  "item_encoding": {
+    "mode": "binary_contact_bus",
+    "active_tag": "SoY Item Active",
+    "bit_tag_template": "SoY Item Bit <0-7>",
+    "decode_formula": "item_id = sum(SoY_ItemBit[i] ? (1 << i) : 0)",
+    "registry": "ITEM_ID_REGISTRY_v1.json",
+    "valid_ids": "1-255",
+    "idle_id": 0,
+    "inventory_rule": "Sam.py must confirm quantity > 0 before applying and consuming the item."
+  }
+}
