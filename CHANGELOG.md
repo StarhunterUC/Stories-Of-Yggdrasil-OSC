@@ -1,3 +1,12 @@
+# v0.8.1
+
+- Added Unity Tool v0.5.3 binary spell Contact bus support.
+- Added `SoY_SpellActive` and `SoY_SpellBit0` through `SoY_SpellBit7` inputs.
+- Reconstructs stable spell IDs after a 30 ms packet-settle window.
+- Preserves direct `SoY_SpellType` support for newer SDK receivers and old avatars.
+- Added tests for Cure (`1`), Curaja (`4`), multi-bit spell ID `127`, and contact exit reset.
+- VPS API v0.8.0 remains compatible because the Desktop submits the same resolved `spell_type` integer.
+
 # v0.8.0
 
 - Added Unity Tool v0.5.2 spell ID telemetry, Enemy Mode, Mist and Curse gauges.

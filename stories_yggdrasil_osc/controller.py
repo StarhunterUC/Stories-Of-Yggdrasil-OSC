@@ -62,6 +62,10 @@ class BridgeController:
         self._last_family_event_at: dict[str, float] = {}
         self._pending_hits: list[tuple[float, int, PendingHit]] = []
         self._pending_counter = 0
+        self._spell_bus_active = False
+        self._spell_bus_bits = [False] * 8
+        self._spell_bus_pending_until = 0.0
+        self._spell_bus_settle_seconds = 0.03
         self.current_avatar_id = ""
         self.last_input_at = 0.0
         self.external_detected = False
@@ -87,6 +91,15 @@ class BridgeController:
             self.parameters["debuff_bleed"]: ("status", "bleed"),
             self.parameters.get("enemy_mode", "SoY_IsEnemy"): ("telemetry_bool", "enemy_mode"),
             self.parameters.get("spell_type", "SoY_SpellType"): ("telemetry_int", "spell_type"),
+            self.parameters.get("spell_active", "SoY_SpellActive"): ("spell_bus_active", None),
+            self.parameters.get("spell_bit_0", "SoY_SpellBit0"): ("spell_bus_bit", "0"),
+            self.parameters.get("spell_bit_1", "SoY_SpellBit1"): ("spell_bus_bit", "1"),
+            self.parameters.get("spell_bit_2", "SoY_SpellBit2"): ("spell_bus_bit", "2"),
+            self.parameters.get("spell_bit_3", "SoY_SpellBit3"): ("spell_bus_bit", "3"),
+            self.parameters.get("spell_bit_4", "SoY_SpellBit4"): ("spell_bus_bit", "4"),
+            self.parameters.get("spell_bit_5", "SoY_SpellBit5"): ("spell_bus_bit", "5"),
+            self.parameters.get("spell_bit_6", "SoY_SpellBit6"): ("spell_bus_bit", "6"),
+            self.parameters.get("spell_bit_7", "SoY_SpellBit7"): ("spell_bus_bit", "7"),
             self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
             self.parameters.get("mist_charge", "SoY_MistCharge"): ("telemetry_int", "mist_charge"),
             self.parameters.get("mist_max", "SoY_MistMax"): ("telemetry_int", "mist_max"),
@@ -128,6 +141,9 @@ class BridgeController:
         self._last_bool_values.clear()
         self._last_family_event_at.clear()
         self._pending_hits.clear()
+        self._spell_bus_active = False
+        self._spell_bus_bits = [False] * 8
+        self._spell_bus_pending_until = 0.0
 
     def handle_osc(self, address: str, values: tuple[Any, ...], now: float | None = None) -> None:
         t = time.monotonic() if now is None else float(now)
@@ -186,15 +202,32 @@ class BridgeController:
         if kind == "presence":
             return
 
+        if kind == "spell_bus_bit" and detail is not None:
+            try:
+                bit = int(detail)
+            except (TypeError, ValueError):
+                return
+            if 0 <= bit < len(self._spell_bus_bits):
+                self._spell_bus_bits[bit] = _as_bool(raw_value)
+                if self._spell_bus_active:
+                    self._spell_bus_pending_until = now + self._spell_bus_settle_seconds
+            return
+
+        if kind == "spell_bus_active":
+            active = _as_bool(raw_value)
+            self._spell_bus_active = active
+            if active:
+                # Contact parameters arrive as separate OSC packets. Give the bit
+                # values a few milliseconds to settle before resolving the ID.
+                self._spell_bus_pending_until = now + self._spell_bus_settle_seconds
+            else:
+                self._spell_bus_pending_until = 0.0
+                self.telemetry["spell_type"] = 0
+            return
+
         if kind in {"telemetry_bool", "telemetry_int"} and detail:
             value = _as_bool(raw_value) if kind == "telemetry_bool" else int(float(raw_value or 0))
-            previous = self.telemetry.get(detail)
-            self.telemetry[detail] = value
-            if detail == "spell_type" and int(value or 0) == 0:
-                return
-            if previous != value:
-                snap = self.state.snapshot(now)
-                self._emit(EventResult(True, "telemetry", f"{detail.replace('_', ' ').title()}: {value}", hp_before=snap["current_hp"], hp_after=snap["current_hp"], maximum_hp=snap["maximum_hp"], metadata={detail: value}))
+            self._set_telemetry(detail, value, now=now, source="direct_parameter")
             return
 
         value = _as_bool(raw_value)
@@ -268,6 +301,31 @@ class BridgeController:
             self._emit(result)
             self.sync_outputs()
 
+    def _set_telemetry(self, detail: str, value: Any, *, now: float, source: str) -> None:
+        previous = self.telemetry.get(detail)
+        self.telemetry[detail] = value
+        if detail == "spell_type" and int(value or 0) == 0:
+            return
+        if previous != value:
+            snap = self.state.snapshot(now)
+            self._emit(EventResult(
+                True,
+                "telemetry",
+                f"{detail.replace('_', ' ').title()}: {value}",
+                hp_before=snap["current_hp"],
+                hp_after=snap["current_hp"],
+                maximum_hp=snap["maximum_hp"],
+                metadata={detail: value, "source": source},
+            ))
+
+    def _resolve_spell_bus(self, now: float) -> None:
+        if not self._spell_bus_active:
+            return
+        spell_id = sum((1 << bit) for bit, enabled in enumerate(self._spell_bus_bits) if enabled)
+        if spell_id <= 0:
+            return
+        self._set_telemetry("spell_type", spell_id, now=now, source="binary_contact_bus")
+
     def _mark_external_detected(self, parameter: str) -> None:
         first = not self.external_detected
         self.external_detected = True
@@ -332,6 +390,9 @@ class BridgeController:
 
     def tick(self, now: float | None = None) -> None:
         t = time.monotonic() if now is None else float(now)
+        if self._spell_bus_pending_until and self._spell_bus_pending_until <= t:
+            self._spell_bus_pending_until = 0.0
+            self._resolve_spell_bus(t)
         while self._pending_hits and self._pending_hits[0][0] <= t:
             _, _, pending = heapq.heappop(self._pending_hits)
             block_cfg = self.config["combat"]["block"]
