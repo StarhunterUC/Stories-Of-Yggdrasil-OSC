@@ -96,6 +96,8 @@ class StoriesOSCApp:
         self.recovery_options: list[dict[str, Any]] = []
         self.recovery_by_row: dict[str, dict[str, Any]] = {}
         self.latest_release: dict[str, Any] = {}
+        self.update_check_automatic = False
+        self.update_progress_visible = False
         self.npc_roster: list[dict[str, Any]] = []
         self.npc_by_name: dict[str, dict[str, Any]] = {}
         self.enemy_mode_pending_value: bool | None = None
@@ -126,7 +128,9 @@ class StoriesOSCApp:
         if self.config["osc"].get("auto_start_listener", True):
             self.root.after(120, self.start_listener)
         if self.config.get("updates", {}).get("check_on_start", True):
-            self.root.after(1600, self.check_for_updates)
+            self.root.after(1600, lambda: self.check_for_updates(automatic=True))
+        update_hours = max(1.0, float(self.config.get("updates", {}).get("check_interval_hours", 6.0) or 6.0))
+        self.root.after(int(update_hours * 60 * 60 * 1000), self._automatic_update_tick)
 
     # ------------------------------------------------------------------
     # Window / style
@@ -248,7 +252,14 @@ class StoriesOSCApp:
         ttk.Label(brand, text="Stories Of Yggdrasil OSC", style="Brand.TLabel").pack(anchor="w")
         ttk.Label(brand, text=f"Version {__version__}", style="Version.TLabel").pack(anchor="w")
         self.update_button = ttk.Button(top, text="Check for updates", command=self.check_for_updates)
-        self.update_button.pack(side=tk.RIGHT, padx=18, pady=16)
+        self.update_button.pack(side=tk.RIGHT, padx=(8, 18), pady=16)
+        self.update_progress_frame = ttk.Frame(top, style="Panel.TFrame")
+        self.update_progress_frame.pack(side=tk.RIGHT, padx=(8, 0), pady=10)
+        self.update_progress_label = ttk.Label(self.update_progress_frame, text="", style="Muted.Panel.TLabel")
+        self.update_progress_label.pack(anchor="e")
+        self.update_progress_bar = ttk.Progressbar(self.update_progress_frame, mode="determinate", maximum=100, length=190)
+        self.update_progress_bar.pack(anchor="e", pady=(3, 0))
+        self.update_progress_frame.pack_forget()
 
     def _new_page(self) -> ttk.Frame:
         page = ttk.Frame(self.page_host)
@@ -488,7 +499,7 @@ class StoriesOSCApp:
         self.github_repo_var = tk.StringVar(value=str(updates.get("github_repo") or ""))
         self.update_on_start_var = tk.BooleanVar(value=bool(updates.get("check_on_start", True)))
         self._entry(update_card, 1, "GitHub repository", self.github_repo_var)
-        ttk.Checkbutton(update_card, text="Check for updates when the program starts", variable=self.update_on_start_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 16))
+        ttk.Checkbutton(update_card, text="Automatically check at startup and every six hours", variable=self.update_on_start_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 16))
         update_card.columnconfigure(1, weight=1)
 
         actions = ttk.Frame(body)
@@ -734,6 +745,7 @@ class StoriesOSCApp:
             "client_seq": self.sam_client_seq,
             "client_session": self.sam_client_session,
             "client_event": self.sam_last_event_name,
+            "client_version": __version__,
             "vrc_trigger": bool(self.sam_last_event_vrc_trigger),
             "avatar_id": self.last_avatar_id,
             "source_mode": self.controller.active_input_mode,
@@ -1009,40 +1021,90 @@ class StoriesOSCApp:
     # ------------------------------------------------------------------
     # Updates and settings
     # ------------------------------------------------------------------
-    def check_for_updates(self) -> None:
+    def _show_update_progress(self, message: str, percent: float = 0.0) -> None:
+        if not self.update_progress_visible:
+            self.update_progress_frame.pack(side=tk.RIGHT, padx=(8, 0), pady=10, before=self.update_button)
+            self.update_progress_visible = True
+        self.update_progress_label.configure(text=str(message or "Working…"))
+        self.update_progress_bar.configure(value=max(0.0, min(100.0, float(percent))))
+
+    def _hide_update_progress(self, delay_ms: int = 800) -> None:
+        def hide() -> None:
+            if self.update_progress_visible:
+                self.update_progress_frame.pack_forget()
+                self.update_progress_visible = False
+        self.root.after(max(0, int(delay_ms)), hide)
+
+    def _automatic_update_tick(self) -> None:
+        if self.closing:
+            return
         updates = self.config.get("updates", {})
-        repo = str(updates.get("github_repo") or "").strip()
-        self.update_button.configure(text="Checking…")
+        interval_hours = max(1.0, float(updates.get("check_interval_hours", 6.0) or 6.0))
+        if bool(updates.get("check_on_start", True)) and not self.update_manager.busy:
+            self.check_for_updates(automatic=True)
+        self.root.after(int(interval_hours * 60 * 60 * 1000), self._automatic_update_tick)
+
+    def check_for_updates(self, automatic: bool = False) -> None:
+        updates = self.config.get("updates", {})
+        repo = str(updates.get("github_repo") or "StarhunterUC/Stories-Of-Yggdrasil-OSC").strip()
+        self.update_check_automatic = bool(automatic)
+        self.update_button.configure(text="Checking…", command=self.check_for_updates)
+        self._show_update_progress("Checking for updates…", 2)
         self.update_manager.check(repo, str(updates.get("asset_pattern") or ""))
 
     def _handle_update_event(self, event: UpdateEvent) -> None:
+        if event.kind == "update_progress":
+            self._show_update_progress(event.message, float(event.data.get("percent", 0) or 0))
+            return
         if event.kind == "update_available":
             self.latest_release = dict(event.data)
             version = str(event.data.get("latest_version") or "new")
-            self.update_button.configure(text=f"Update {version} available", style="Green.TButton", command=self.install_available_update)
-            notes = str(event.data.get("release_notes") or "").strip()
-            summary = notes[:700] + ("…" if len(notes) > 700 else "")
-            if messagebox.askyesno("Update Available", f"Stories Of Yggdrasil OSC {version} is available.\n\n{summary}\n\nDownload and install it now?"):
-                self.install_available_update()
+            self.update_button.configure(
+                text=f"Install update {version}",
+                style="Green.TButton",
+                command=self.install_available_update,
+                state=tk.NORMAL,
+            )
+            self._show_update_progress(f"Version {version} is available.", 100)
+            self._hide_update_progress(2200)
+            self._append_activity("UPDATE", f"Version {version} is available. Click Install update to begin.")
         elif event.kind == "update_current":
-            self.update_button.configure(text="Up to date")
+            self.update_button.configure(text="Up to date", style="TButton", command=self.check_for_updates, state=tk.NORMAL)
+            self._show_update_progress("The application is up to date.", 100)
+            self._hide_update_progress(1200)
         elif event.kind == "update_ready":
             script = str(event.data.get("script") or "")
-            if messagebox.askyesno("Install Update", "The update is ready. Close the program and install it now?"):
-                try:
-                    UpdateManager.launch_installer(script)
-                    self.close()
-                except Exception as exc:
-                    messagebox.showerror("Update", str(exc))
+            version = str(event.data.get("version") or self.latest_release.get("latest_version") or "new")
+            try:
+                self._show_update_progress(f"Launching the {version} installer…", 100)
+                UpdateManager.launch_installer(script)
+                self.root.after(350, self.close)
+            except Exception as exc:
+                self.update_button.configure(text="Install update", style="Green.TButton", command=self.install_available_update)
+                self._hide_update_progress(0)
+                messagebox.showerror("Update", str(exc))
         else:
-            self.update_button.configure(text="Update check unavailable")
+            self.update_button.configure(text="Update check unavailable", style="TButton", command=self.check_for_updates, state=tk.NORMAL)
+            self._hide_update_progress(0)
             if event.message and "not configured" not in event.message.lower():
                 self._append_activity("UPDATE", event.message)
+                if not self.update_check_automatic:
+                    messagebox.showwarning("Update Check", event.message)
 
     def install_available_update(self) -> None:
         if not self.latest_release:
+            self.check_for_updates(automatic=False)
             return
-        self.update_button.configure(text="Downloading update…")
+        version = str(self.latest_release.get("latest_version") or "new")
+        notes = str(self.latest_release.get("release_notes") or "").strip()
+        summary = notes[:700] + ("…" if len(notes) > 700 else "")
+        if not messagebox.askyesno(
+            "Install Update",
+            f"Install Stories Of Yggdrasil OSC {version}?\n\n{summary}\n\nA progress window will remain visible while the application files are replaced.",
+        ):
+            return
+        self.update_button.configure(text="Downloading update…", state=tk.DISABLED)
+        self._show_update_progress("Starting update download…", 1)
         self.update_manager.download_and_install(self.latest_release)
 
     def save_settings(self) -> None:

@@ -94,8 +94,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "enemy_name": "",
     },
     "updates": {
-        "github_repo": "",
+        "github_repo": "StarhunterUC/Stories-Of-Yggdrasil-OSC",
         "check_on_start": True,
+        "check_interval_hours": 6,
         "channel": "stable",
         "asset_pattern": "Stories_Of_Yggdrasil_OSC_Windows",
     },
@@ -248,7 +249,12 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 13
+        config["version"] = 14
+        updates_cfg = config.setdefault("updates", {})
+        if not str(updates_cfg.get("github_repo") or "").strip():
+            updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
+        updates_cfg.setdefault("check_on_start", True)
+        updates_cfg.setdefault("check_interval_hours", 6)
         sam_cfg = config.setdefault("sam", {})
         if str(sam_cfg.get("base_url") or "").strip().rstrip("/") in {
             "http://127.0.0.1:8766",

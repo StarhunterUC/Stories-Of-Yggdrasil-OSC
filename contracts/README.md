@@ -20,3 +20,5 @@ Desktop v0.8.5 sends direct `SoY_SpellType`, `SoY_TechnickType`, and `SoY_ItemTy
 - `OSC_CONTRACT_v12.json` — persistent Enemy Mode, friendly harmful-spell filtering, and per-device NPC Mode linked to the Sam.py enemy roster.
 
 Desktop v0.8.6 keeps Stories control parameters active even when the avatar bridge is set to external mode. NPC Mode is stored per linked Desktop device and uses a runtime copy of the selected enemy; it never edits `data/enemies.json`.
+
+- `OSC_CONTRACT_v13.json` — Desktop v0.8.7 / API v0.8.7 / Unity v0.5.5. Adds standalone VRC actions, updater progress, periodic update checks, and Technick/Item caster alignment.

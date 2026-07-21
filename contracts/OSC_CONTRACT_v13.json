@@ -1,0 +1,29 @@
+{
+  "contract_version": 13,
+  "desktop_version": "0.8.7",
+  "api_version": "0.8.7",
+  "unity_tool_version": "0.5.5",
+  "features": {
+    "automatic_update_check_on_start": true,
+    "periodic_update_checks": true,
+    "visible_download_progress": true,
+    "visible_installer_progress": true,
+    "standalone_item_use": true,
+    "standalone_spell_authorization": true,
+    "standalone_technick_authorization": true,
+    "technick_source_alignment": true
+  },
+  "standalone_actions": {
+    "requires_active_encounter": false,
+    "vrc_gate_still_required": true,
+    "item_target_without_encounter": "linked character self",
+    "offensive_target_resolution": "incoming Contact on target avatar"
+  },
+  "alignment": {
+    "source_parameter": "SoY_HealingSourceEnemy",
+    "friendly_harmful_spell_to_friendly": "reject",
+    "friendly_harmful_technick_to_friendly": "reject",
+    "friendly_harmful_to_enemy": "allow",
+    "enemy_harmful_to_friendly": "allow"
+  }
+}

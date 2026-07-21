@@ -1,3 +1,15 @@
+# Changelog
+
+## v0.8.7
+
+- Update checks now run automatically at startup and every six hours.
+- A blank legacy GitHub repository setting is repaired automatically.
+- Update downloads show live progress in the Desktop panel.
+- The external installer now shows its own progress bar, verifies the installed version, writes an install log, and restarts the updated executable directly.
+- Adds Desktop version metadata to Sam.py sync payloads.
+- Supports standalone Item, Spell, and Technick workflows without requiring an active encounter.
+- Requires Unity Tool v0.5.5 for Technick/Item caster-alignment Contacts.
+
 # v0.8.6 — Enemy Alignment & NPC Mode
 
 - Enemy Mode now syncs immediately and is protected from stale poll responses that previously turned it back off.

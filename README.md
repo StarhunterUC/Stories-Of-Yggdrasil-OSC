@@ -1,4 +1,4 @@
-# Stories Of Yggdrasil OSC v0.8.6
+# Stories Of Yggdrasil OSC v0.8.7
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
 
@@ -117,3 +117,12 @@ Decoded spell contacts are now submitted immediately to Sam.py. OSC API v0.8.2 a
 ## NPC Mode
 
 In Settings, enable **NPC Mode**, refresh the roster, and select an enemy. The linked Desktop then uses a device-local runtime copy of that enemy's HP, MP, level, type, regions, spells, Technicks, and items. The static Sam.py enemy roster is never modified.
+
+
+## Automatic updates
+
+The Desktop checks the configured GitHub Releases repository automatically when it starts and every six hours. An available update changes the top-right button to **Install update**. Download and installation progress remain visible, and installer details are written to `%APPDATA%/StoriesOfYggdrasil/OSCContactSystem/update_install.log`.
+
+## Standalone VRC actions
+
+VRC Item, Spell, and Technick actions do not require a Sam.py encounter. Items used without an encounter apply to the linked character, while offensive Spell/Technick effects resolve on whichever avatar receives the matching incoming Contact. RP Combat and Dungeon Master gating still apply because these are VRChat-triggered actions.
