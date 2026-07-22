@@ -1,4 +1,4 @@
-# Quick Start — Desktop v0.8.7
+# Quick Start — Desktop v0.8.8
 
 1. Install or update Unity Contact Tool v0.5.4.
 2. In Unity, run **Incoming Contacts → REPAIR v0.5.1 / v0.5.2 SPELL CONTACTS** on avatars created by older tool versions.

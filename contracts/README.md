@@ -22,3 +22,5 @@ Desktop v0.8.5 sends direct `SoY_SpellType`, `SoY_TechnickType`, and `SoY_ItemTy
 Desktop v0.8.6 keeps Stories control parameters active even when the avatar bridge is set to external mode. NPC Mode is stored per linked Desktop device and uses a runtime copy of the selected enemy; it never edits `data/enemies.json`.
 
 - `OSC_CONTRACT_v13.json` — Desktop v0.8.7 / API v0.8.7 / Unity v0.5.5. Adds standalone VRC actions, updater progress, periodic update checks, and Technick/Item caster alignment.
+
+- `OSC_CONTRACT_v14.json` — Desktop/API v0.8.8 / Unity v0.5.6. Adds authoritative dynamic damage, Base + Gear + Augment mitigation, and Attack/Debuff source alignment.

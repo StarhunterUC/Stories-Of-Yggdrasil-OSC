@@ -616,11 +616,15 @@ class StoriesOSCApp:
         if result.accepted and result.event in {
             "damage", "dot_damage", "healing", "revive", "set_hp", "external_health_update",
             "status_applied", "status_expired", "statuses_cleared", "external_status_active",
-            "external_status_cleared", "combat_toggle",
+            "external_status_cleared", "combat_toggle", "hit_contact", "status_contact",
         }:
             source = str(result.metadata.get("source") or "")
             is_vrc_trigger = source in {"direct", "external", "binary_contact_bus"}
-            self._schedule_sam_sync(result.event, vrc_trigger=is_vrc_trigger)
+            self._schedule_sam_sync(
+                result.event,
+                immediate=result.event in {"hit_contact", "status_contact"},
+                vrc_trigger=is_vrc_trigger,
+            )
         elif result.accepted and result.event == "telemetry":
             if "enemy_mode" in result.metadata:
                 value = bool(result.metadata.get("enemy_mode"))
@@ -757,6 +761,14 @@ class StoriesOSCApp:
         if bool(cfg.get("sync_combat_toggle", True)):
             payload["combat_enabled"] = bool(snap["combat_enabled"])
         payload.update(dict(self.controller.telemetry))
+        # Alignment is event-scoped. Damage/debuff Contacts use the dedicated
+        # source receiver; spells/Technicks/items use their action-bus receiver.
+        if str(payload.get("hit_event") or "") or str(payload.get("status_event") or ""):
+            payload["source_enemy"] = bool(payload.get("damage_source_enemy", False))
+        elif any(int(payload.get(field, 0) or 0) > 0 for field in ("spell_type", "technick_type", "item_type")):
+            payload["source_enemy"] = bool(payload.get("healing_source_enemy", False))
+        elif any(int(payload.get(field, 0) or 0) > 0 for field in ("spell_cast_type", "technick_use_type", "item_use_type")):
+            payload["source_enemy"] = bool(payload.get("enemy_mode", False))
         npc_cfg = self.config.get("npc_mode", {})
         payload["npc_mode"] = bool(npc_cfg.get("enabled", False))
         payload["npc_enemy_key"] = str(npc_cfg.get("enemy_key") or "")
@@ -775,6 +787,15 @@ class StoriesOSCApp:
         hit_event = str(payload.get("hit_event") or "")
         if hit_event:
             self.controller.telemetry["hit_event"] = ""
+        status_event = str(payload.get("status_event") or "")
+        if status_event:
+            self.controller.telemetry["status_event"] = ""
+        if hit_event or status_event:
+            consume_alignment = getattr(self.controller, "consume_damage_alignment", None)
+            if callable(consume_alignment):
+                consume_alignment()
+            else:
+                self.controller.telemetry["damage_source_enemy"] = False
         if bool(cfg.get("sync_statuses", True)):
             active = snap.get("statuses", {})
             statuses: dict[str, Any] = {}
@@ -863,6 +884,8 @@ class StoriesOSCApp:
                 rejected = bool(sync_result) and not bool(sync_result.get("accepted", True))
                 self._apply_sam_state(state, source=event.source, force=event.source in {"sync", "pull"} or rejected)
                 for result_key, accepted_label, info_label, fallback in (
+                    ("hit_result", "DAMAGE", "HIT INFO", "Incoming attack processed."),
+                    ("status_result", "STATUS", "STATUS INFO", "Incoming status processed."),
                     ("spell_cast_result", "CAST", "CAST INFO", "Spell cast processed."),
                     ("technick_use_result", "TECHNICK", "TECHNICK INFO", "Technick use processed."),
                     ("item_use_result", "ITEM", "ITEM INFO", "Item use processed."),
@@ -877,6 +900,11 @@ class StoriesOSCApp:
                             accepted_label if bool(action_result.get("applied", False)) else info_label,
                             action_message,
                         )
+                        if result_key == "hit_result" and bool(action_result.get("applied", False)):
+                            self.controller.authoritative_hit_feedback(
+                                str(action_result.get("hit_type") or "average"),
+                                blocked=bool(action_result.get("blocked", False)),
+                            )
                 if rejected:
                     warning = str(sync_result.get("message") or "No Active DM's - No Hit Registered")
                     self._append_activity("WARNING", warning)

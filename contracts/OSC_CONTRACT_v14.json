@@ -1,0 +1,45 @@
+{
+  "contract_version": 14,
+  "desktop_version": "0.8.8",
+  "api_version": "0.8.8",
+  "unity_tool_version": "0.5.6",
+  "features": {
+    "authoritative_vrc_damage": true,
+    "attack_source_alignment": true,
+    "debuff_source_alignment": true,
+    "dynamic_target_defense": true,
+    "gear_and_augment_stats": true,
+    "friendly_fire_rejection": true,
+    "dynamic_spell_damage": true,
+    "dynamic_technick_damage": true,
+    "dynamic_dot_damage": true
+  },
+  "alignment": {
+    "action_source_parameter": "SoY_HealingSourceEnemy",
+    "damage_source_parameter": "SoY_DamageSourceEnemy",
+    "friendly_harmful_to_friendly": "reject",
+    "friendly_harmful_to_enemy": "allow",
+    "enemy_harmful_to_friendly": "allow",
+    "missing_damage_alignment": "treat_as_friendly"
+  },
+  "damage_authority": {
+    "authoritative_component": "Sam.py OSC API",
+    "target_stats": [
+      "effective_max_hp",
+      "DEF",
+      "RES",
+      "EVA",
+      "VIT",
+      "level"
+    ],
+    "stat_sources": [
+      "base",
+      "equipment",
+      "augments"
+    ],
+    "fixed_damage_exceptions": [
+      "1000 Needles"
+    ],
+    "caster_stat_limitation": "VRChat Contacts do not identify the sending Sam.py character; Contact tier supplies incoming force while target final stats supply mitigation."
+  }
+}

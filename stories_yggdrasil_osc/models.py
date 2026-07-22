@@ -41,4 +41,14 @@ class PendingHit:
     due_at: float
     received_at: float
     source: str = "soy"
+    source_enemy: bool = False
     external_health_owns_damage: bool = False
+
+
+@dataclass(frozen=True)
+class PendingStatus:
+    status_name: str
+    due_at: float
+    received_at: float
+    source: str = "soy"
+    source_enemy: bool = False

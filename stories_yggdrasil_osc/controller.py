@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .combat import CombatState
-from .models import EventResult, PendingHit
+from .models import EventResult, PendingHit, PendingStatus
 
 
 def _as_bool(value: Any) -> bool:
@@ -63,7 +63,10 @@ class BridgeController:
         self._last_family_event_at: dict[str, float] = {}
         self._last_direct_action_value: dict[str, int] = {}
         self._pending_hits: list[tuple[float, int, PendingHit]] = []
+        self._pending_statuses: list[tuple[float, int, PendingStatus]] = []
         self._pending_counter = 0
+        self._pending_status_counter = 0
+        self._damage_source_enemy_latched_until = 0.0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
         self._spell_bus_pending_until = 0.0
@@ -89,11 +92,13 @@ class BridgeController:
             "technick_type": 0,
             "item_type": 0,
             "healing_source_enemy": False,
+            "damage_source_enemy": False,
             "mist_charge": 0,
             "mist_max": 0,
             "diablos_applicable": False,
             "diablos_percent": 0,
             "hit_event": "",
+            "status_event": "",
         }
         self.reconfigure(config)
 
@@ -145,6 +150,7 @@ class BridgeController:
             self.parameters.get("item_bit_6", "SoY_ItemBit6"): ("item_bus_bit", "6"),
             self.parameters.get("item_bit_7", "SoY_ItemBit7"): ("item_bus_bit", "7"),
             self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
+            self.parameters.get("damage_source_enemy", "SoY_DamageSourceEnemy"): ("telemetry_bool", "damage_source_enemy"),
             self.parameters.get("mist_charge", "SoY_MistCharge"): ("telemetry_int", "mist_charge"),
             self.parameters.get("mist_max", "SoY_MistMax"): ("telemetry_int", "mist_max"),
             self.parameters.get("diablos_applicable", "SoY_DiablosApplicable"): ("telemetry_bool", "diablos_applicable"),
@@ -170,6 +176,21 @@ class BridgeController:
         self._external_input_by_name = external
 
     @property
+    def authoritative_sam_actions(self) -> bool:
+        sam = self.config.get("sam", {})
+        return bool(
+            sam.get("enabled", False)
+            and str(sam.get("token") or "").strip()
+            and sam.get("authoritative_vrc_damage", True)
+        )
+
+    def _current_damage_source_enemy(self, now: float) -> bool:
+        return bool(
+            self.telemetry.get("damage_source_enemy", False)
+            or now < self._damage_source_enemy_latched_until
+        )
+
+    @property
     def configured_input_mode(self) -> str:
         mode = str(self.config.get("avatar_bridge", {}).get("input_mode", "auto")).strip().lower()
         return mode if mode in {"auto", "external", "direct"} else "auto"
@@ -185,6 +206,8 @@ class BridgeController:
         self._last_bool_values.clear()
         self._last_family_event_at.clear()
         self._pending_hits.clear()
+        self._pending_statuses.clear()
+        self._damage_source_enemy_latched_until = 0.0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
         self._spell_bus_pending_until = 0.0
@@ -283,6 +306,13 @@ class BridgeController:
         if kind in {"telemetry_bool", "telemetry_int", "telemetry_percent"} and detail:
             if kind == "telemetry_bool":
                 value = _as_bool(raw_value)
+                if detail == "damage_source_enemy" and value:
+                    # Alignment and hit/status Contacts arrive as separate OSC packets.
+                    # Keep Enemy alignment latched briefly so packet order cannot
+                    # turn an Enemy hit into an unclassified/Friendly hit.
+                    self._damage_source_enemy_latched_until = max(
+                        self._damage_source_enemy_latched_until, now + 0.35
+                    )
             elif kind == "telemetry_percent":
                 try:
                     raw = float(raw_value or 0.0)
@@ -347,7 +377,6 @@ class BridgeController:
             return
 
         if kind == "hit" and detail:
-            self.telemetry["hit_event"] = detail
             if source == "external" and self._family_duplicate(detail, now):
                 snap = self.state.snapshot(now)
                 self._emit(EventResult(
@@ -364,9 +393,12 @@ class BridgeController:
             return
 
         if kind == "status" and detail:
-            result = self.state.apply_status(detail, now=now)
-            self._emit(result)
-            self.sync_outputs()
+            if self.authoritative_sam_actions:
+                self.queue_status(detail, now=now, source=source)
+            else:
+                result = self.state.apply_status(detail, now=now)
+                self._emit(result)
+                self.sync_outputs()
 
     def _set_telemetry(self, detail: str, value: Any, *, now: float, source: str) -> None:
         previous = self.telemetry.get(detail)
@@ -443,16 +475,33 @@ class BridgeController:
     def queue_hit(self, hit_type: str, now: float | None = None, *, source: str = "direct") -> None:
         t = time.monotonic() if now is None else float(now)
         block = self.config["combat"]["block"]
-        settle = 0.0 if hit_type == "critical" else max(0.0, float(block.get("hit_settle_seconds", 0.07)))
+        # Authoritative Sam.py processing needs a brief packet-settle window so
+        # SoY_DamageSourceEnemy and the hit tier are read from the same Contact.
+        settle = max(0.04, float(block.get("hit_settle_seconds", 0.07))) if self.authoritative_sam_actions else (
+            0.0 if hit_type == "critical" else max(0.0, float(block.get("hit_settle_seconds", 0.07)))
+        )
         pending = PendingHit(
             hit_type=hit_type,
             due_at=t + settle,
             received_at=t,
             source=source,
+            source_enemy=self._current_damage_source_enemy(t),
             external_health_owns_damage=self._external_health_owns_damage(source),
         )
         self._pending_counter += 1
         heapq.heappush(self._pending_hits, (pending.due_at, self._pending_counter, pending))
+
+    def queue_status(self, status_name: str, now: float | None = None, *, source: str = "direct") -> None:
+        t = time.monotonic() if now is None else float(now)
+        pending = PendingStatus(
+            status_name=str(status_name).strip().lower(),
+            due_at=t + 0.05,
+            received_at=t,
+            source=source,
+            source_enemy=self._current_damage_source_enemy(t),
+        )
+        self._pending_status_counter += 1
+        heapq.heappush(self._pending_statuses, (pending.due_at, self._pending_status_counter, pending))
 
     def manual_hit(self, hit_type: str, now: float | None = None) -> EventResult:
         t = time.monotonic() if now is None else float(now)
@@ -512,6 +561,23 @@ class BridgeController:
                     reaction_code=self.REACTION_CODES["blocked"],
                     metadata={"hit_type": pending.hit_type, "source": pending.source},
                 )
+            elif self.authoritative_sam_actions:
+                source_enemy = bool(pending.source_enemy or self._current_damage_source_enemy(t))
+                self.telemetry["hit_event"] = pending.hit_type
+                self.telemetry["damage_source_enemy"] = source_enemy
+                result = EventResult(
+                    True,
+                    "hit_contact",
+                    f"{pending.hit_type.title()} Contact sent to Sam.py for armor/augment damage resolution.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={
+                        "hit_type": pending.hit_type,
+                        "source": pending.source,
+                        "source_enemy": source_enemy,
+                    },
+                )
             elif pending.external_health_owns_damage:
                 result = EventResult(
                     True,
@@ -525,6 +591,39 @@ class BridgeController:
                 )
             else:
                 result = self.state.apply_hit(pending.hit_type, now=t, blocked=False)
+            self._emit(result)
+            self._after_result(result)
+
+        while self._pending_statuses and self._pending_statuses[0][0] <= t:
+            _, _, pending_status = heapq.heappop(self._pending_statuses)
+            snap = self.state.snapshot(t)
+            if not snap["combat_enabled"]:
+                result = EventResult(
+                    False,
+                    "status_ignored",
+                    f"{pending_status.status_name.title()} ignored: RP combat is disabled.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={"status": pending_status.status_name, "source": pending_status.source},
+                )
+            else:
+                source_enemy = bool(pending_status.source_enemy or self._current_damage_source_enemy(t))
+                self.telemetry["status_event"] = pending_status.status_name
+                self.telemetry["damage_source_enemy"] = source_enemy
+                result = EventResult(
+                    True,
+                    "status_contact",
+                    f"{pending_status.status_name.title()} Contact sent to Sam.py for alignment and resistance checks.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={
+                        "status": pending_status.status_name,
+                        "source": pending_status.source,
+                        "source_enemy": source_enemy,
+                    },
+                )
             self._emit(result)
             self._after_result(result)
 
@@ -550,6 +649,18 @@ class BridgeController:
             self.pulse_parameter(self.parameters["healing"], 0.18)
         if blocked:
             self.pulse_parameter(self.parameters.get("blocked", "SoY_Blocked"), 0.15)
+
+    def consume_damage_alignment(self) -> None:
+        self.telemetry["damage_source_enemy"] = False
+        self._damage_source_enemy_latched_until = 0.0
+
+    def authoritative_hit_feedback(self, hit_type: str, *, blocked: bool = False) -> None:
+        hit = str(hit_type or "").strip().lower()
+        if blocked:
+            self._send_reaction(self.REACTION_CODES["blocked"], blocked=True)
+            return
+        code = self.REACTION_CODES.get(hit, self.REACTION_CODES.get("average", 2))
+        self._send_reaction(code, damaged=True)
 
     def sync_timed_outputs(self, now: float | None = None) -> None:
         snap = self.state.snapshot(now)
@@ -581,7 +692,25 @@ class BridgeController:
         # 0.0 = full health, 1.0 = KO.
         if bool(self.config.get("avatar_bridge", {}).get("health_invert", True)):
             ratio = 1.0 - ratio
-        result = self.state.set_hp(round(self.state.maximum_hp * ratio))
+        requested_hp = round(self.state.maximum_hp * ratio)
+        if self.authoritative_sam_actions:
+            snap = self.state.snapshot()
+            observed = EventResult(
+                False,
+                "external_health_observed",
+                (
+                    f"Observed {source.upper()} health request {requested_hp}/{snap['maximum_hp']}; "
+                    "Sam.py remains authoritative for VRC damage and healing."
+                ),
+                hp_before=snap["current_hp"],
+                hp_after=snap["current_hp"],
+                maximum_hp=snap["maximum_hp"],
+                metadata={"source": source, "raw_value": raw_value, "requested_hp": requested_hp},
+            )
+            self._emit(observed)
+            self.sync_outputs()
+            return
+        result = self.state.set_hp(requested_hp)
         observed = EventResult(
             True,
             "external_health_update",

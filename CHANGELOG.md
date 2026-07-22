@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.8
+
+- Makes Sam.py authoritative for incoming melee and debuff Contacts.
+- Adds Ally/Enemy source alignment for attacks and standalone debuffs.
+- Uses final Base + Gear + Augment DEF, RES, EVA, VIT, and effective HP in damage resolution.
+- Adds dynamic physical, magick, Technick, item, and damage-over-time handling.
+- Rejects Friendly-to-Friendly harmful Contacts before HP or statuses change.
+- Requires Unity Tool v0.5.6 and OSC API v0.8.8 for the complete alignment contract.
+
 ## v0.8.7
 
 - Update checks now run automatically at startup and every six hours.
