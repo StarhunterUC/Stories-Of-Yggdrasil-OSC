@@ -409,6 +409,28 @@ class BridgeController:
         direct_fields = {"spell_cast_type", "technick_use_type", "item_use_type"}
         numeric_value = int(value or 0) if detail in action_fields else 0
 
+        if detail in {"spell_cast_type", "technick_use_type"} and numeric_value > 0 and self.state.is_ko:
+            self._last_direct_action_value[detail] = numeric_value
+            self.telemetry[detail] = 0
+            parameter_key = {
+                "spell_cast_type": "spell_type",
+                "technick_use_type": "technick_type",
+                "item_use_type": "item_type",
+            }.get(detail)
+            if parameter_key and str(self.parameters.get(parameter_key) or "").strip():
+                self.send_parameter(self.parameters[parameter_key], 0)
+            snap = self.state.snapshot(now)
+            self._emit(EventResult(
+                False,
+                "action_ignored_ko",
+                f"{detail.replace('_', ' ').title()} ignored: the linked character is KO.",
+                hp_before=snap["current_hp"],
+                hp_after=snap["current_hp"],
+                maximum_hp=snap["maximum_hp"],
+                metadata={detail: numeric_value, "source": source, "reason": "actor_ko"},
+            ))
+            return
+
         # The payload builder clears one-shot telemetry after submission. Keep a
         # separate raw-parameter latch so a repeated OSC packet while a VRChat
         # Button is still held cannot charge MP or consume an item twice.
@@ -627,9 +649,10 @@ class BridgeController:
             self._emit(result)
             self._after_result(result)
 
-        for result in self.state.tick(t):
-            self._emit(result)
-            self._after_result(result)
+        if not self.authoritative_sam_actions:
+            for result in self.state.tick(t):
+                self._emit(result)
+                self._after_result(result)
         self.sync_timed_outputs(t)
 
     def _after_result(self, result: EventResult) -> None:

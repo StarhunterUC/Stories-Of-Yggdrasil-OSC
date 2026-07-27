@@ -1,17 +1,29 @@
-# Quick Start — Desktop v0.8.8
+# Quick Start — Desktop v0.8.11
 
-1. Install or update Unity Contact Tool v0.5.4.
-2. In Unity, run **Incoming Contacts → REPAIR v0.5.1 / v0.5.2 SPELL CONTACTS** on avatars created by older tool versions.
-3. Publish the avatar so VRChat regenerates its OSC parameter configuration.
-4. Start `Start Stories OSC.bat`.
-5. Pair with Sam.py and enable RP Combat.
-6. Test Cure ID `1` and Curaja ID `4`; Recent Activity should show different resolved spell IDs.
+1. Run `Start Stories OSC.bat`.
+2. Pair the Desktop with Sam.py using `/osc_link`.
+3. Confirm the Connection page reports OSC API v0.8.13 or newer.
+4. Publish the avatar after Unity Tool v0.5.8 TB6.2 has installed or repaired the current Contacts.
+5. Enable RP Combat and open the Dungeon Master gate before testing VRChat-triggered actions.
 
-## Technick and Item Contacts
+## Verified Player → NPC damage
 
-Create the outgoing sender in Unity Tool v0.5.4, install the corresponding incoming binary bus on the target avatar, and keep the Desktop application linked to Sam.py. Both RP Combat and Dungeon Master Mode must be active. Item Contacts use the linked character's current Sam.py inventory and current encounter target; missing or unusable items are rejected without consumption.
+1. Open **Settings → NPC Mode**.
+2. Select **Refresh Rosters** and choose the NPC.
+3. Select **Verified stats**.
+4. Choose the attacking player and character. On API v0.8.13, enter the numeric Discord ID and exact character name manually. API v0.8.14 populates both selectors.
+5. Save Settings.
+6. Strike the NPC avatar with Weak, Average, Strong, or Critical Contacts.
+7. Review **Last hit diagnostics** for attacker ATK/MAG/SPD, NPC DEF/RES, mitigation, model, and final damage.
 
+Use **Compatibility fallback** only for transition testing. It does not use a real player character's stats.
 
-## NPC Mode
+## Windows release build
 
-Open **Settings → NPC Mode**, select **Refresh Roster**, choose an enemy, enable NPC Mode, and save. Enemy Mode is forced on while the NPC profile is active. Disabling NPC Mode returns the Desktop to the linked Sam.py player character without changing the static enemy roster.
+Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\BUILD_AND_PACKAGE_v0.8.11.ps1"
+```
+
+The script prepares the environment, runs tests and the source audit, builds the Windows executable, creates the release ZIP, and writes its SHA-256 checksum.

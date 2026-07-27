@@ -97,7 +97,7 @@ class DummyController:
 class DamagePayloadTests(unittest.TestCase):
     def test_hit_payload_uses_damage_alignment_and_is_one_shot(self):
         app = StoriesOSCApp.__new__(StoriesOSCApp)
-        app.config = {"sam": {"sync_hp": True, "sync_combat_toggle": True, "sync_statuses": False}, "npc_mode": {}}
+        app.config = {"sam": {"sync_hp": True, "sync_combat_toggle": True, "sync_statuses": False}, "npc_mode": {"attacker_mode": "verified", "attacker_user_id": "123", "attacker_char_name": "Clover"}}
         app.state = DummyState()
         app.controller = DummyController()
         app.sam_client_seq = 0
@@ -109,6 +109,8 @@ class DamagePayloadTests(unittest.TestCase):
         self.assertEqual(payload["hit_event"], "strong")
         self.assertTrue(payload["source_enemy"])
         self.assertEqual(app.controller.telemetry["hit_event"], "")
+        self.assertEqual(payload["npc_attacker_user_id"], "123")
+        self.assertEqual(payload["npc_attacker_char_name"], "Clover")
 
 
 if __name__ == "__main__":

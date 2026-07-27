@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.8.11 — Verified Player → NPC damage identity
+
+- Adds an Attacking Player and Attacking Character workflow to Desktop NPC Mode.
+- Sends only `npc_attacker_user_id` and `npc_attacker_char_name`; Sam.py remains authoritative for level, ATK, MAG, SPD, equipment, licenses, KO state, and final damage.
+- Adds explicit **Verified stats** and **Compatibility fallback** modes so the fallback can no longer be mistaken for a real-player calculation.
+- Displays NPC level, HP, MP, ATK, DEF, MAG, RES, SPD, EVA, VIT, affinities, weaknesses, and resistances from the Sam.py roster.
+- Displays the last server-returned Player → NPC damage model, attacker stats, target DEF/RES, mitigation, attack tier, and final damage.
+- Detects and warns about OSC API versions older than v0.8.13.
+- Supports the optional OSC API v0.8.14 attacker roster while retaining manual Discord ID and character-name entry on v0.8.13.
+- Preserves Desktop v0.8.10 polling, status authority, update, and single-instance behavior.
+- Requires OSC API v0.8.13; OSC API v0.8.14 is recommended for populated player/character selectors. Unity Tool v0.5.8 TB6.2 remains supported and requires no damage-formula update.
+
+## v0.8.10
+
+- Adds revision-aware Sam.py state polling and lightweight unchanged responses.
+- Uses adaptive idle and outage backoff to reduce HTTP/TLS and JSON work.
+- Coalesces pending sync payloads instead of replaying stale intermediate states.
+- Refreshes the Desktop UI and runtime_state.json only when authoritative values change.
+- Rotates events.log and suppresses repeated outage messages.
+- Prevents duplicate Desktop instances from creating a second poller or OSC port conflict.
+- Requires OSC API v0.8.10; Unity Tool v0.5.8 TB6.2 remains supported.
+
+## v0.8.9
+
+- Makes Sam.py authoritative for real-time status timers and damage-over-time ticks.
+- Prevents dead characters from sending local Spell or Technick actions.
+- Uses a strict living-HP-below-15% Critical threshold.
+- Replaces stale Desktop status mirrors atomically when Sam.py clears an effect.
+- Displays Sam.py DoT tick, expiration, clear, and KO events once in Recent Activity.
+- Requires OSC API v0.8.9 and recommends Unity Tool v0.5.8 TB6.2.
+
 ## v0.8.8
 
 - Makes Sam.py authoritative for incoming melee and debuff Contacts.

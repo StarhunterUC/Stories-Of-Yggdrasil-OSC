@@ -44,7 +44,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
 
           Copy-Item "dist/Stories Of Yggdrasil OSC/*" $releaseRoot -Recurse -Force
-          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, version.json $releaseRoot -Force
+          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, PATCH_NOTES_v0.8.11.md, version.json $releaseRoot -Force
 
           if (Test-Path "contracts") {
             Copy-Item "contracts" "$releaseRoot/contracts" -Recurse -Force

@@ -69,7 +69,7 @@ class CombatState:
     @property
     def is_critical_hp(self) -> bool:
         with self._lock:
-            return 0 < self.current_hp <= round(self.maximum_hp * self.critical_hp_percent)
+            return self.current_hp > 0 and (self.current_hp / self.maximum_hp) < self.critical_hp_percent
 
     def is_invulnerable(self, now: float | None = None) -> bool:
         t = time.monotonic() if now is None else float(now)
@@ -117,7 +117,7 @@ class CombatState:
                 "hp_stage": self.hp_stage,
                 "combat_enabled": self.combat_enabled,
                 "is_ko": self.current_hp <= 0,
-                "critical_hp": 0 < self.current_hp <= round(self.maximum_hp * self.critical_hp_percent),
+                "critical_hp": self.current_hp > 0 and (self.current_hp / self.maximum_hp) < self.critical_hp_percent,
                 "invulnerable": t < self.invulnerable_until,
                 "blocking": t < self.blocked_until,
                 "statuses": active,
@@ -208,12 +208,18 @@ class CombatState:
         with self._lock:
             before = self.current_hp
             if active:
-                changed = key not in self.external_statuses
+                # Sam.py is the owner. Convert any older local timer into a
+                # mirror so the Desktop cannot apply a second DoT tick.
+                removed_local = self.statuses.pop(key, None) is not None
+                changed = key not in self.external_statuses or removed_local
                 self.external_statuses.add(key)
                 message = f"Observed external {key.title()} active."
                 event = "external_status_active"
             else:
-                changed = key in self.external_statuses
+                # A remote clear is authoritative and must remove stale local
+                # timers left by an older Desktop build.
+                removed_local = self.statuses.pop(key, None) is not None
+                changed = key in self.external_statuses or removed_local
                 self.external_statuses.discard(key)
                 message = f"Observed external {key.title()} cleared."
                 event = "external_status_cleared"
@@ -226,6 +232,23 @@ class CombatState:
                 maximum_hp=self.maximum_hp,
                 metadata={"status": key, "external": True},
             )
+
+    def replace_authoritative_statuses(self, names: set[str] | list[str] | tuple[str, ...]) -> bool:
+        """Replace Sam-owned mirrored status state atomically.
+
+        Tracked Sam statuses are never allowed to keep a local Desktop timer.
+        """
+        wanted = {str(name).strip().lower() for name in names if str(name).strip()}
+        tracked = {"burn", "bleed", "silence", "freeze", "bind"}
+        wanted &= tracked
+        with self._lock:
+            before_external = set(self.external_statuses)
+            before_local = set(self.statuses)
+            for key in tracked:
+                self.statuses.pop(key, None)
+            self.external_statuses.difference_update(tracked)
+            self.external_statuses.update(wanted)
+            return before_external != self.external_statuses or bool(before_local.intersection(tracked))
 
     def clear_status(self, name: str) -> EventResult:
         key = str(name).strip().lower()

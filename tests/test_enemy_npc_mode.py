@@ -6,6 +6,7 @@ from stories_yggdrasil_osc.combat import CombatState
 from stories_yggdrasil_osc.config import DEFAULT_CONFIG
 from stories_yggdrasil_osc.controller import BridgeController
 from stories_yggdrasil_osc.sam_client import SamClient
+from stories_yggdrasil_osc.app import StoriesOSCApp
 
 
 class EnemyModeAndNpcModeTests(unittest.TestCase):
@@ -37,6 +38,8 @@ class EnemyModeAndNpcModeTests(unittest.TestCase):
         self.assertIn("npc_mode", DEFAULT_CONFIG)
         self.assertFalse(DEFAULT_CONFIG["npc_mode"]["enabled"])
         self.assertEqual(DEFAULT_CONFIG["npc_mode"]["enemy_key"], "")
+        self.assertEqual(DEFAULT_CONFIG["npc_mode"]["attacker_mode"], "verified")
+        self.assertEqual(DEFAULT_CONFIG["npc_mode"]["attacker_user_id"], "")
 
     def test_npc_catalog_client_route(self):
         events = queue.Queue()
@@ -47,6 +50,26 @@ class EnemyModeAndNpcModeTests(unittest.TestCase):
         self.assertEqual(event.kind, "npc_catalog")
         self.assertTrue(event.ok)
         self.assertEqual(event.data["enemies"][0]["name"], "Wolf")
+
+
+    def test_catalog_accepts_optional_attacker_rows(self):
+        events = queue.Queue()
+        client = SamClient(events, {"base_url": "https://example.invalid", "token": "token"})
+        client._request = lambda method, path, **kwargs: {
+            "ok": True,
+            "api_version": "0.8.14",
+            "enemies": [{"key": "wolf", "name": "Wolf"}],
+            "attackers": [{"user_id": "123", "character_name": "Clover", "eligible": True}],
+        }  # type: ignore[method-assign]
+        client._do_command("npc_catalog", {})
+        event = events.get_nowait()
+        self.assertEqual(event.data["attackers"][0]["character_name"], "Clover")
+
+    def test_version_tuple_handles_patch_labels(self):
+        self.assertGreaterEqual(
+            StoriesOSCApp._version_tuple("0.8.13-player-npc"),
+            StoriesOSCApp._version_tuple("0.8.13"),
+        )
 
 
 if __name__ == "__main__":

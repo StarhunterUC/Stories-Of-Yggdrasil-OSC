@@ -14,7 +14,7 @@ from typing import Any
 
 from PIL import Image, ImageTk
 
-from . import __version__
+from . import OSC_API_MINIMUM, OSC_API_RECOMMENDED, __version__
 from .combat import CombatState
 from .config import get_app_data_dir, get_log_path, load_config, load_runtime_state, save_config, save_runtime_state
 from .controller import BridgeController
@@ -64,7 +64,7 @@ class StoriesOSCApp:
             current_hp=int(runtime.get("current_hp", profile.get("starting_hp", profile["maximum_hp"]))),
             damage_values=self.config["combat"]["damage"],
             invulnerability_seconds=float(self.config["combat"]["global_invulnerability_seconds"]),
-            critical_hp_percent=float(profile.get("critical_hp_percent", 0.25)),
+            critical_hp_percent=float(profile.get("critical_hp_percent", 0.15)),
             status_rules=self.config["statuses"],
             clear_statuses_when_disabled=bool(self.config["combat"].get("clear_statuses_when_disabled", True)),
             combat_enabled=bool(runtime.get("combat_enabled", False)),
@@ -100,6 +100,12 @@ class StoriesOSCApp:
         self.update_progress_visible = False
         self.npc_roster: list[dict[str, Any]] = []
         self.npc_by_name: dict[str, dict[str, Any]] = {}
+        self.npc_attacker_roster: list[dict[str, Any]] = []
+        self.npc_attackers_by_player: dict[str, list[dict[str, Any]]] = {}
+        self.npc_attacker_player_ids: dict[str, str] = {}
+        self.link_info: dict[str, Any] = {}
+        self.sam_api_version = ""
+        self.npc_last_hit_diagnostics: dict[str, Any] = {}
         self.enemy_mode_pending_value: bool | None = None
         self.enemy_mode_pending_until = 0.0
 
@@ -114,6 +120,14 @@ class StoriesOSCApp:
         self.sam_last_dm_gate_active = False
         self.sam_last_rejection_at = 0.0
         self.sam_status_handoff_signature = ""
+        self.sam_seen_status_event_ids: set[str] = set()
+        self.sam_seen_status_event_order: list[str] = []
+
+        self._last_saved_runtime_state = {
+            "current_hp": int(runtime.get("current_hp", self.state.current_hp)),
+            "combat_enabled": bool(runtime.get("combat_enabled", self.state.combat_enabled)),
+        }
+        self._last_ui_signature: tuple[Any, ...] | None = None
 
         self._setup_styles()
         self._build_ui()
@@ -127,6 +141,8 @@ class StoriesOSCApp:
         self.root.after(1000, self._autosave_tick)
         if self.config["osc"].get("auto_start_listener", True):
             self.root.after(120, self.start_listener)
+        if str(self.config.get("sam", {}).get("token") or "").strip():
+            self.root.after(900, self.refresh_npc_roster)
         if self.config.get("updates", {}).get("check_on_start", True):
             self.root.after(1600, lambda: self.check_for_updates(automatic=True))
         update_hours = max(1.0, float(self.config.get("updates", {}).get("check_interval_hours", 6.0) or 6.0))
@@ -400,7 +416,9 @@ class StoriesOSCApp:
         ttk.Button(buttons, text="Test", command=self.test_sam_connection).pack(side=tk.LEFT, padx=6)
         ttk.Button(buttons, text="Unlink", style="Danger.TButton", command=self.unlink_from_sam).pack(side=tk.LEFT, padx=6)
         self.sam_status_label = ttk.Label(sam_card, text="Not paired", style="Muted.Card.TLabel", wraplength=430, justify="left")
-        self.sam_status_label.grid(row=5, column=0, columnspan=2, sticky="w", padx=20, pady=(2, 20))
+        self.sam_status_label.grid(row=5, column=0, columnspan=2, sticky="w", padx=20, pady=(2, 6))
+        self.sam_api_label = ttk.Label(sam_card, text=f"OSC API: unknown • minimum {OSC_API_MINIMUM} • recommended {OSC_API_RECOMMENDED}", style="Muted.Card.TLabel", wraplength=430, justify="left")
+        self.sam_api_label.grid(row=6, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 20))
         sam_card.columnconfigure(1, weight=1)
 
         ttk.Label(osc_card, text="VRChat OSC", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(20, 12))
@@ -483,15 +501,43 @@ class StoriesOSCApp:
         npc_cfg = self.config.get("npc_mode", {})
         self.npc_mode_var = tk.BooleanVar(value=bool(npc_cfg.get("enabled", False)))
         self.npc_enemy_var = tk.StringVar(value=str(npc_cfg.get("enemy_name") or ""))
-        ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=6)
+        self.npc_attacker_mode_var = tk.StringVar(value=str(npc_cfg.get("attacker_mode") or "verified"))
+        self.npc_attacker_player_var = tk.StringVar(value=str(npc_cfg.get("attacker_player_label") or npc_cfg.get("attacker_user_id") or ""))
+        self.npc_attacker_char_var = tk.StringVar(value=str(npc_cfg.get("attacker_char_name") or ""))
+        ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var, command=self._refresh_npc_attacker_status).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=6)
         ttk.Label(npc_card, text="NPC roster", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
         self.npc_enemy_combo = ttk.Combobox(npc_card, textvariable=self.npc_enemy_var, values=(), state="readonly")
         self.npc_enemy_combo.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
-        ttk.Button(npc_card, text="Refresh Roster", command=self.refresh_npc_roster).grid(row=2, column=3, sticky="e", padx=(0, 20), pady=6)
-        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy; the static enemy roster is never edited.", style="Muted.Card.TLabel", wraplength=860, justify="left")
-        self.npc_notice_label.grid(row=3, column=0, columnspan=4, sticky="w", padx=20, pady=(6, 16))
+        self.npc_enemy_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_npc_preview())
+        ttk.Button(npc_card, text="Refresh Rosters", command=self.refresh_npc_roster).grid(row=2, column=3, sticky="e", padx=(0, 20), pady=6)
+        self.npc_preview_label = ttk.Label(npc_card, text="Select an NPC to preview its authoritative level, HP, DEF, RES, EVA, and affinities.", style="Muted.Card.TLabel", wraplength=900, justify="left")
+        self.npc_preview_label.grid(row=3, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 10))
+
+        ttk.Separator(npc_card, orient="horizontal").grid(row=4, column=0, columnspan=4, sticky="ew", padx=20, pady=6)
+        ttk.Label(npc_card, text="Player → NPC Damage Attacker", style="CardTitle.TLabel").grid(row=5, column=0, columnspan=4, sticky="w", padx=20, pady=(8, 8))
+        ttk.Label(npc_card, text="Attacking player", style="Card.TLabel").grid(row=6, column=0, sticky="w", padx=20, pady=6)
+        self.npc_attacker_player_combo = ttk.Combobox(npc_card, textvariable=self.npc_attacker_player_var, values=(), state="normal")
+        self.npc_attacker_player_combo.grid(row=6, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
+        self.npc_attacker_player_combo.bind("<<ComboboxSelected>>", self._on_npc_attacker_player_selected)
+        self.npc_attacker_player_combo.bind("<KeyRelease>", lambda _event: self._refresh_npc_attacker_status())
+        ttk.Button(npc_card, text="Use Linked Character", command=self._use_linked_character_as_attacker).grid(row=6, column=3, sticky="e", padx=(0, 20), pady=6)
+
+        ttk.Label(npc_card, text="Attacking character", style="Card.TLabel").grid(row=7, column=0, sticky="w", padx=20, pady=6)
+        self.npc_attacker_char_combo = ttk.Combobox(npc_card, textvariable=self.npc_attacker_char_var, values=(), state="normal")
+        self.npc_attacker_char_combo.grid(row=7, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
+        self.npc_attacker_char_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_npc_attacker_status())
+        self.npc_attacker_char_combo.bind("<KeyRelease>", lambda _event: self._refresh_npc_attacker_status())
+        ttk.Radiobutton(npc_card, text="Verified stats", value="verified", variable=self.npc_attacker_mode_var, command=self._refresh_npc_attacker_status).grid(row=8, column=0, columnspan=2, sticky="w", padx=20, pady=4)
+        ttk.Radiobutton(npc_card, text="Compatibility fallback", value="fallback", variable=self.npc_attacker_mode_var, command=self._refresh_npc_attacker_status).grid(row=8, column=2, columnspan=2, sticky="w", padx=10, pady=4)
+        self.npc_attacker_status_label = ttk.Label(npc_card, text="", style="Muted.Card.TLabel", wraplength=900, justify="left")
+        self.npc_attacker_status_label.grid(row=9, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 6))
+        self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=900, justify="left")
+        self.npc_hit_diagnostics_label.grid(row=10, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 6))
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy; the static enemy roster is never edited.", style="Muted.Card.TLabel", wraplength=900, justify="left")
+        self.npc_notice_label.grid(row=11, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 16))
         npc_card.columnconfigure(1, weight=1)
         npc_card.columnconfigure(2, weight=1)
+        self._refresh_npc_attacker_status()
 
         update_card = self._card(body)
         update_card.pack(fill=tk.X, pady=10)
@@ -568,7 +614,11 @@ class StoriesOSCApp:
         self.controller.tick()
         if self.sam_sync_due_at and time.monotonic() >= self.sam_sync_due_at and not self.sam_sync_inflight:
             self._push_sam_state()
-        self.root.after(self.POLL_MS, self._poll)
+        try:
+            minimized = self.root.state() == "iconic"
+        except Exception:
+            minimized = False
+        self.root.after(125 if minimized else self.POLL_MS, self._poll)
 
     def _handle_osc_event(self, event: OSCEvent) -> None:
         if event.kind == "system":
@@ -685,7 +735,11 @@ class StoriesOSCApp:
         self.sam_client.reconfigure(cfg)
         self.remote_character = {}
         self.remote_state = {}
+        self.link_info = {}
+        self.sam_api_version = ""
         self.sam_status_label.configure(text="Not paired", foreground=THEME["muted"])
+        if hasattr(self, "sam_api_label"):
+            self.sam_api_label.configure(text=f"OSC API: unknown • minimum {OSC_API_MINIMUM} • recommended {OSC_API_RECOMMENDED}", foreground=THEME["muted"])
         self._append_activity("SAM", "Sam.py device link removed.")
         self._refresh_ui()
 
@@ -704,7 +758,7 @@ class StoriesOSCApp:
         if not str(self.config.get("sam", {}).get("token") or "").strip():
             self.npc_notice_label.configure(text="Pair this device with Sam.py before loading the NPC roster.")
             return
-        self.npc_notice_label.configure(text="Loading the Sam.py enemy roster…")
+        self.npc_notice_label.configure(text="Loading Sam.py NPC and attacker rosters…")
         self.sam_client.npc_catalog()
 
     def use_selected_recovery(self) -> None:
@@ -772,6 +826,9 @@ class StoriesOSCApp:
         npc_cfg = self.config.get("npc_mode", {})
         payload["npc_mode"] = bool(npc_cfg.get("enabled", False))
         payload["npc_enemy_key"] = str(npc_cfg.get("enemy_key") or "")
+        verified_attacker = str(npc_cfg.get("attacker_mode") or "verified").lower() == "verified"
+        payload["npc_attacker_user_id"] = str(npc_cfg.get("attacker_user_id") or "") if verified_attacker else ""
+        payload["npc_attacker_char_name"] = str(npc_cfg.get("attacker_char_name") or "") if verified_attacker else ""
         for field in (
             "spell_cast_type", "technick_use_type", "item_use_type",
             "spell_type", "technick_type", "item_type",
@@ -796,7 +853,7 @@ class StoriesOSCApp:
                 consume_alignment()
             else:
                 self.controller.telemetry["damage_source_enemy"] = False
-        if bool(cfg.get("sync_statuses", True)):
+        if bool(cfg.get("sync_statuses", True)) and not self.controller.authoritative_sam_actions:
             active = snap.get("statuses", {})
             statuses: dict[str, Any] = {}
             for name in ("burn", "bleed", "silence", "freeze", "bind"):
@@ -825,6 +882,7 @@ class StoriesOSCApp:
             self.sam_status_label.configure(text=event.message, foreground=THEME["red"])
             self._append_activity("SAM ERROR", event.message)
             return
+        self._record_sam_api_version(event.data)
         if event.kind == "npc_catalog":
             rows = event.data.get("enemies") if isinstance(event.data.get("enemies"), list) else []
             self.npc_roster = [row for row in rows if isinstance(row, dict)]
@@ -834,9 +892,19 @@ class StoriesOSCApp:
             current = str(self.npc_enemy_var.get() or "")
             if current not in self.npc_by_name and names:
                 self.npc_enemy_var.set(names[0])
-            self.npc_notice_label.configure(text=f"Loaded {len(names)} enemies from the Sam.py NPC roster.")
+            self._refresh_npc_preview()
+
+            attacker_rows = event.data.get("attackers") if isinstance(event.data.get("attackers"), list) else []
+            self._load_npc_attacker_roster([row for row in attacker_rows if isinstance(row, dict)])
+            if self.npc_attacker_roster:
+                eligible = sum(1 for row in self.npc_attacker_roster if bool(row.get("eligible", True)))
+                self.npc_notice_label.configure(text=f"Loaded {len(names)} enemies and {eligible} eligible attacker character(s) from Sam.py.")
+            else:
+                self.npc_notice_label.configure(text=f"Loaded {len(names)} enemies. API {self.sam_api_version or 'unknown'} does not publish an attacker roster; manual Discord ID and character-name entry remains available.")
+            self._refresh_npc_attacker_status()
             return
         if event.kind == "paired":
+            self.link_info = dict(event.data.get("link") or {}) if isinstance(event.data.get("link"), dict) else {}
             token = str(event.data.get("token") or "")
             if not token:
                 self.sam_status_label.configure(text="Pairing failed: no device token returned.", foreground=THEME["red"])
@@ -853,12 +921,15 @@ class StoriesOSCApp:
             self.sam_status_label.configure(text="Paired and connected.", foreground=THEME["green"])
             self._append_activity("SAM", "Device paired with Sam.py.")
             self.sam_client.recovery_options()
+            self.sam_client.npc_catalog()
             return
         if event.kind == "unlinked":
             self._clear_local_sam_link()
             return
         if event.kind == "test":
             state_response = event.data.get("state_response")
+            if isinstance(state_response, dict) and isinstance(state_response.get("link"), dict):
+                self.link_info = dict(state_response.get("link") or {})
             if isinstance(state_response, dict) and isinstance(state_response.get("state"), dict):
                 self._apply_sam_state(state_response["state"], source="test", force=False)
             self.sam_status_label.configure(text="Connection test passed.", foreground=THEME["green"])
@@ -877,6 +948,8 @@ class StoriesOSCApp:
             return
         if event.kind == "state":
             self.sam_sync_inflight = False
+            if isinstance(event.data.get("link"), dict):
+                self.link_info = dict(event.data.get("link") or {})
             state = event.data.get("state")
             rejected = False
             if isinstance(state, dict):
@@ -900,11 +973,13 @@ class StoriesOSCApp:
                             accepted_label if bool(action_result.get("applied", False)) else info_label,
                             action_message,
                         )
-                        if result_key == "hit_result" and bool(action_result.get("applied", False)):
-                            self.controller.authoritative_hit_feedback(
-                                str(action_result.get("hit_type") or "average"),
-                                blocked=bool(action_result.get("blocked", False)),
-                            )
+                        if result_key == "hit_result":
+                            self._update_npc_hit_diagnostics(action_result)
+                            if bool(action_result.get("applied", False)):
+                                self.controller.authoritative_hit_feedback(
+                                    str(action_result.get("hit_type") or action_result.get("tier") or "average"),
+                                    blocked=bool(action_result.get("blocked", False)),
+                                )
                 if rejected:
                     warning = str(sync_result.get("message") or "No Active DM's - No Hit Registered")
                     self._append_activity("WARNING", warning)
@@ -914,6 +989,149 @@ class StoriesOSCApp:
                 self.sam_local_dirty = False
             if not rejected:
                 self.sam_status_label.configure(text="Connected to Sam.py.", foreground=THEME["green"])
+
+    @staticmethod
+    def _version_tuple(value: Any) -> tuple[int, int, int]:
+        parts = []
+        for token in str(value or "").strip().lstrip("vV").split(".")[:3]:
+            digits = "".join(ch for ch in token if ch.isdigit())
+            parts.append(int(digits or 0))
+        while len(parts) < 3:
+            parts.append(0)
+        return tuple(parts[:3])
+
+    def _record_sam_api_version(self, payload: dict[str, Any]) -> None:
+        if not isinstance(payload, dict):
+            return
+        candidate = str(payload.get("api_version") or payload.get("version") or "").strip()
+        nested = payload.get("state_response") if isinstance(payload.get("state_response"), dict) else {}
+        candidate = candidate or str(nested.get("api_version") or "").strip()
+        if candidate:
+            self.sam_api_version = candidate
+        if hasattr(self, "sam_api_label"):
+            api = self.sam_api_version or "unknown"
+            api_ok = self._version_tuple(api) >= self._version_tuple(OSC_API_MINIMUM) if api != "unknown" else False
+            roster_ok = self._version_tuple(api) >= self._version_tuple(OSC_API_RECOMMENDED) if api != "unknown" else False
+            status = "compatible" if api_ok else ("not verified" if api == "unknown" else "update required")
+            roster = "attacker roster available" if roster_ok else "manual attacker entry"
+            self.sam_api_label.configure(
+                text=f"OSC API: {api} • {status} • {roster} • minimum {OSC_API_MINIMUM}",
+                foreground=THEME["green"] if api_ok else THEME["red"] if api != "unknown" else THEME["muted"],
+            )
+        self._refresh_npc_attacker_status()
+
+    def _refresh_npc_preview(self) -> None:
+        if not hasattr(self, "npc_preview_label"):
+            return
+        row = self.npc_by_name.get(str(self.npc_enemy_var.get() or "").strip())
+        if not isinstance(row, dict):
+            self.npc_preview_label.configure(text="Select an NPC to preview its authoritative level, HP, DEF, RES, EVA, and affinities.")
+            return
+        weaknesses = ", ".join(str(x) for x in row.get("weaknesses", []) if str(x)) or "none listed"
+        resistances = ", ".join(str(x) for x in row.get("resistances", []) if str(x)) or "none listed"
+        self.npc_preview_label.configure(text=(
+            f"Level {int(row.get('level', 1) or 1)} • HP {int(row.get('max_hp', 1) or 1):,} • MP {int(row.get('max_mp', 0) or 0):,} • "
+            f"ATK {int(row.get('atk', 0) or 0)} • DEF {int(row.get('def', 0) or 0)} • MAG {int(row.get('mag', 0) or 0)} • RES {int(row.get('res', 0) or 0)} • "
+            f"SPD {int(row.get('spd', 0) or 0)} • EVA {int(row.get('eva', 0) or 0)} • VIT {int(row.get('vit', row.get('vitality', 0)) or 0)}\n"
+            f"Physical affinity: {row.get('physical_affinity') or 'normal'} • Magick affinity: {row.get('magick_affinity') or 'normal'} • Weaknesses: {weaknesses} • Resistances: {resistances}"
+        ))
+
+    def _load_npc_attacker_roster(self, rows: list[dict[str, Any]]) -> None:
+        self.npc_attacker_roster = list(rows)
+        self.npc_attackers_by_player.clear()
+        self.npc_attacker_player_ids.clear()
+        for row in self.npc_attacker_roster:
+            uid = str(row.get("user_id") or "").strip()
+            if not uid.isdigit():
+                continue
+            player_label = str(row.get("player_label") or row.get("account_name") or uid).strip()
+            if uid not in player_label:
+                player_label = f"{player_label} — {uid}"
+            self.npc_attackers_by_player.setdefault(player_label, []).append(row)
+            self.npc_attacker_player_ids[player_label] = uid
+        player_values = sorted(self.npc_attackers_by_player, key=str.casefold)
+        self.npc_attacker_player_combo.configure(values=player_values)
+
+        current_uid = str(self.config.get("npc_mode", {}).get("attacker_user_id") or "")
+        current_label = str(self.npc_attacker_player_var.get() or "")
+        if current_label not in self.npc_attackers_by_player and current_uid:
+            match = next((label for label, uid in self.npc_attacker_player_ids.items() if uid == current_uid), "")
+            if match:
+                self.npc_attacker_player_var.set(match)
+                current_label = match
+        if current_label in self.npc_attackers_by_player:
+            self._on_npc_attacker_player_selected(None)
+
+    def _on_npc_attacker_player_selected(self, _event: Any) -> None:
+        label = str(self.npc_attacker_player_var.get() or "").strip()
+        rows = self.npc_attackers_by_player.get(label, [])
+        names = sorted({str(row.get("character_name") or "") for row in rows if str(row.get("character_name") or "")}, key=str.casefold)
+        self.npc_attacker_char_combo.configure(values=names)
+        current = str(self.npc_attacker_char_var.get() or "")
+        if current not in names and names:
+            preferred = next((str(row.get("character_name") or "") for row in rows if bool(row.get("active", False)) and bool(row.get("eligible", True))), "")
+            if not preferred:
+                preferred = next((str(row.get("character_name") or "") for row in rows if bool(row.get("eligible", True))), names[0])
+            self.npc_attacker_char_var.set(preferred)
+        self._refresh_npc_attacker_status()
+
+    def _use_linked_character_as_attacker(self) -> None:
+        uid = str(self.link_info.get("user_id") or self.remote_state.get("user_id") or "").strip()
+        char_name = str(self.remote_character.get("name") or self.remote_state.get("active_character") or "").strip()
+        if not uid or not char_name:
+            messagebox.showwarning("NPC Attacker", "Pair the Desktop with Sam.py and load the linked character before using this shortcut.")
+            return
+        label = next((label for label, candidate_uid in self.npc_attacker_player_ids.items() if candidate_uid == uid), uid)
+        self.npc_attacker_player_var.set(label)
+        self.npc_attacker_char_var.set(char_name)
+        self.npc_attacker_mode_var.set("verified")
+        self._on_npc_attacker_player_selected(None)
+
+    def _refresh_npc_attacker_status(self) -> None:
+        if not hasattr(self, "npc_attacker_status_label"):
+            return
+        api = self.sam_api_version or "unknown"
+        api_ok = self._version_tuple(api) >= self._version_tuple(OSC_API_MINIMUM) if api != "unknown" else False
+        mode = str(self.npc_attacker_mode_var.get() or "verified").lower()
+        player_text = str(self.npc_attacker_player_var.get() or "").strip()
+        uid = str(self.npc_attacker_player_ids.get(player_text) or player_text).strip()
+        char_name = str(self.npc_attacker_char_var.get() or "").strip()
+        if mode == "fallback":
+            text = "Compatibility fallback selected. Sam.py will use an equal-level benchmark that does not scale from NPC HP, but it will not use a real player's ATK/MAG/SPD."
+            color = THEME["yellow"]
+        elif uid.isdigit() and char_name:
+            text = f"Verified attacker requested: {char_name} ({uid}). Sam.py reads that character's current stats and eligibility from players.json; the Desktop sends identity only."
+            color = THEME["green"] if api_ok else THEME["yellow"]
+        else:
+            text = "Verified mode requires a numeric Discord user ID and exact character name. Refresh Rosters for selectors, or enter them manually."
+            color = THEME["red"]
+        if api != "unknown" and not api_ok:
+            text += f" Connected OSC API {api} is older than the required {OSC_API_MINIMUM}."
+            color = THEME["red"]
+        elif api != "unknown":
+            text += f" Connected OSC API: {api}; recommended for roster selectors: {OSC_API_RECOMMENDED}."
+        self.npc_attacker_status_label.configure(text=text, foreground=color)
+
+    def _update_npc_hit_diagnostics(self, result: dict[str, Any]) -> None:
+        if not isinstance(result, dict):
+            return
+        model = str(result.get("damage_model") or "")
+        if "npc" not in model:
+            return
+        self.npc_last_hit_diagnostics = dict(result)
+        attacker = result.get("attacker") if isinstance(result.get("attacker"), dict) else {}
+        attacker_stats = result.get("attacker_stats") if isinstance(result.get("attacker_stats"), dict) else {}
+        target = result.get("target_stats") if isinstance(result.get("target_stats"), dict) else {}
+        name = str(attacker.get("name") or attacker.get("character_name") or "Compatibility fallback")
+        eligibility = str(attacker.get("reason") or "ok")
+        amount = int(result.get("damage", 0) or 0)
+        tier = str(result.get("hit_type") or result.get("tier") or "average").title()
+        text = (
+            f"Last hit: {tier} • {amount:,} damage • model {model} • attacker {name} ({eligibility}) • "
+            f"ATK {int(attacker_stats.get('atk', 0) or 0)} / MAG {int(attacker_stats.get('mag', 0) or 0)} / SPD {int(attacker_stats.get('spd', 0) or 0)} • "
+            f"target Lv {int(target.get('level', 1) or 1)} / DEF {int(target.get('def', 0) or 0)} / RES {int(target.get('res', 0) or 0)} • mitigation {float(result.get('mitigation_percent', 0) or 0):.1f}%"
+        )
+        self.npc_hit_diagnostics_label.configure(text=text, foreground=THEME["green"] if bool(result.get("applied", False)) else THEME["yellow"])
 
     def _populate_recovery(self, options: list[dict[str, Any]], payload: dict[str, Any]) -> None:
         self.recovery_options = [x for x in options if isinstance(x, dict)]
@@ -1013,7 +1231,7 @@ class StoriesOSCApp:
                 maximum_hp=max_hp,
                 damage_values=self.config["combat"]["damage"],
                 invulnerability_seconds=self.config["combat"]["global_invulnerability_seconds"],
-                critical_hp_percent=self.config["profile"].get("critical_hp_percent", 0.25),
+                critical_hp_percent=self.config["profile"].get("critical_hp_percent", 0.15),
                 status_rules=self.config["statuses"],
                 preserve_ratio=False,
             )
@@ -1023,9 +1241,9 @@ class StoriesOSCApp:
                 if enabled != self.state.combat_enabled:
                     self.state.set_combat_enabled(enabled)
             names = {str(x).strip().lower() for x in char.get("status_names", [])}
-            for status_name in ("burn", "bleed", "silence", "freeze", "bind"):
-                if status_name not in self.state.statuses:
-                    self.state.set_external_status(status_name, status_name in names)
+            self.state.replace_authoritative_statuses(
+                names.intersection({"burn", "bleed", "silence", "freeze", "bind"})
+            )
             self.output_cache.clear()
             self.controller.sync_outputs()
             self._send_parameter(self.config["parameters"]["combat_enabled"], self.state.combat_enabled)
@@ -1043,7 +1261,26 @@ class StoriesOSCApp:
                 signature = ",".join(sorted(names.intersection({"burn", "bleed", "silence", "freeze", "bind"})))
                 if signature != self.sam_status_handoff_signature:
                     self.sam_status_handoff_signature = signature
-                    self._schedule_sam_sync("remote_status_handoff", immediate=True)
+        status_events = state.get("status_events") if isinstance(state.get("status_events"), list) else []
+        for row in status_events:
+            if not isinstance(row, dict):
+                continue
+            event_id = str(row.get("id") or "").strip()
+            if not event_id or event_id in self.sam_seen_status_event_ids:
+                continue
+            self.sam_seen_status_event_ids.add(event_id)
+            self.sam_seen_status_event_order.append(event_id)
+            while len(self.sam_seen_status_event_order) > 200:
+                stale = self.sam_seen_status_event_order.pop(0)
+                self.sam_seen_status_event_ids.discard(stale)
+            event_name = str(row.get("event") or "status").casefold()
+            label = "STATUS"
+            if event_name in {"dot_tick", "ko"}:
+                label = "DAMAGE" if event_name == "dot_tick" else "KO"
+            elif event_name == "hot_tick":
+                label = "HEALING"
+            self._append_activity(label, str(row.get("message") or "Status updated."))
+
         self._refresh_ui()
 
     # ------------------------------------------------------------------
@@ -1159,9 +1396,29 @@ class StoriesOSCApp:
             npc_key = str(npc_row.get("key") or npc_cfg.get("enemy_key") or "")
             if npc_enabled and not npc_key:
                 raise ValueError("Select an NPC from the Sam.py roster before enabling NPC Mode.")
+
+            attacker_mode = str(self.npc_attacker_mode_var.get() or "verified").lower()
+            if attacker_mode not in {"verified", "fallback"}:
+                attacker_mode = "verified"
+            player_text = str(self.npc_attacker_player_var.get() or "").strip()
+            attacker_user_id = str(self.npc_attacker_player_ids.get(player_text) or player_text).strip()
+            attacker_char_name = str(self.npc_attacker_char_var.get() or "").strip()
+            if attacker_mode == "verified" and npc_enabled:
+                if not attacker_user_id or not attacker_user_id.isdigit():
+                    raise ValueError("Verified Player → NPC damage requires the attacking player's numeric Discord ID or a player selected from the Sam.py attacker roster.")
+                if not attacker_char_name:
+                    raise ValueError("Verified Player → NPC damage requires an attacking character.")
+                selected = next((row for row in self.npc_attacker_roster if str(row.get("user_id") or "") == attacker_user_id and str(row.get("character_name") or "").casefold() == attacker_char_name.casefold()), None)
+                if isinstance(selected, dict) and not bool(selected.get("eligible", True)):
+                    raise ValueError(str(selected.get("unavailable_reason") or "That attacker is not eligible to attack."))
+
             npc_cfg["enabled"] = npc_enabled
             npc_cfg["enemy_name"] = npc_name
             npc_cfg["enemy_key"] = npc_key
+            npc_cfg["attacker_mode"] = attacker_mode
+            npc_cfg["attacker_user_id"] = attacker_user_id if attacker_mode == "verified" else ""
+            npc_cfg["attacker_char_name"] = attacker_char_name if attacker_mode == "verified" else ""
+            npc_cfg["attacker_player_label"] = player_text if attacker_mode == "verified" else ""
             updates = self.config["updates"]
             updates["github_repo"] = str(self.github_repo_var.get()).strip()
             updates["check_on_start"] = bool(self.update_on_start_var.get())
@@ -1172,7 +1429,7 @@ class StoriesOSCApp:
                 maximum_hp=self.config["profile"]["maximum_hp"],
                 damage_values=self.config["combat"]["damage"],
                 invulnerability_seconds=self.config["combat"]["global_invulnerability_seconds"],
-                critical_hp_percent=self.config["profile"].get("critical_hp_percent", 0.25),
+                critical_hp_percent=self.config["profile"].get("critical_hp_percent", 0.15),
                 status_rules=self.config["statuses"],
                 preserve_ratio=True,
             )
@@ -1182,6 +1439,7 @@ class StoriesOSCApp:
                 self._send_parameter(self.config["parameters"]["enemy_mode"], True)
                 self.controller.telemetry["enemy_mode"] = True
             self._schedule_sam_sync("npc_mode", immediate=True, vrc_trigger=False)
+            self._refresh_npc_attacker_status()
             messagebox.showinfo("Settings", "Settings saved and applied.")
         except Exception as exc:
             messagebox.showerror("Settings", f"Could not apply settings.\n\n{exc}")
@@ -1193,12 +1451,65 @@ class StoriesOSCApp:
         if self.closing:
             return
         self._refresh_ui()
-        self.root.after(500, self._refresh_loop)
+        try:
+            minimized = self.root.state() == "iconic"
+        except Exception:
+            minimized = False
+        self.root.after(1500 if minimized else 500, self._refresh_loop)
 
     def _refresh_ui(self) -> None:
         snap = self.state.snapshot()
         hp = int(snap["current_hp"])
         max_hp = int(snap["maximum_hp"])
+        osc_state_for_signature = (
+            self.remote_state.get("osc")
+            if isinstance(self.remote_state.get("osc"), dict)
+            else {}
+        )
+        gate_for_signature = (
+            self.remote_state.get("dm_gate")
+            if isinstance(self.remote_state.get("dm_gate"), dict)
+            else {}
+        )
+        char_for_signature = self.remote_character or {}
+        recent_for_signature = bool(
+            self.controller.last_input_at
+            and (
+                time.monotonic() - self.controller.last_input_at
+                <= float(
+                    self.config["osc"].get(
+                        "activity_timeout_seconds",
+                        5.0,
+                    )
+                )
+            )
+        )
+        ui_signature = (
+            hp,
+            max_hp,
+            int(self.remote_mp),
+            int(self.remote_max_mp),
+            bool(snap.get("combat_enabled")),
+            tuple(sorted(str(x) for x in (snap.get("statuses") or {}).keys())),
+            int(self.remote_state.get("revision", -1) or -1),
+            bool(gate_for_signature.get("active", False)),
+            tuple(str(x) for x in gate_for_signature.get("dm_names", []) if str(x)),
+            bool(self.osc.running),
+            recent_for_signature,
+            self.last_avatar_id,
+            str(char_for_signature.get("name") or ""),
+            int(char_for_signature.get("level", 0) or 0),
+            str(char_for_signature.get("class") or ""),
+            tuple(str(x) for x in char_for_signature.get("classes", []) if str(x)),
+            str(char_for_signature.get("race") or ""),
+            str(char_for_signature.get("region") or ""),
+            bool(osc_state_for_signature.get("diablos_applicable", False)),
+            round(coerce_percent(osc_state_for_signature.get("diablos_percent", 0)), 3),
+            bool(str(self.config.get("sam", {}).get("token") or "").strip()),
+        )
+        if ui_signature == self._last_ui_signature:
+            return
+        self._last_ui_signature = ui_signature
         self.hp_bar.configure(value=float(snap["hp_ratio"]) * 100.0)
         self.hp_value_label.configure(text=f"{hp:,} / {max_hp:,}")
         mp_ratio = self.remote_mp / self.remote_max_mp if self.remote_max_mp else 0.0
@@ -1253,6 +1564,25 @@ class StoriesOSCApp:
         paired = bool(str(self.config.get("sam", {}).get("token") or "").strip())
         self.footer_sam.configure(text=f"Sam.py: {'paired' if paired else 'not paired'}", foreground=THEME["green"] if paired else THEME["muted"])
 
+    @staticmethod
+    def _rotate_activity_log(max_bytes: int = 5 * 1024 * 1024, keep: int = 3) -> None:
+        path = get_log_path()
+        try:
+            if not path.exists() or path.stat().st_size < max_bytes:
+                return
+            keep = max(1, int(keep))
+            oldest = path.with_name(path.name + f".{keep}")
+            if oldest.exists():
+                oldest.unlink()
+            for index in range(keep - 1, 0, -1):
+                source = path.with_name(path.name + f".{index}")
+                target = path.with_name(path.name + f".{index + 1}")
+                if source.exists():
+                    source.replace(target)
+            path.replace(path.with_name(path.name + ".1"))
+        except Exception:
+            pass
+
     def _append_activity(self, category: str, message: str) -> None:
         self.last_event = str(message)
         stamp = datetime.now().strftime("%H:%M:%S")
@@ -1266,6 +1596,7 @@ class StoriesOSCApp:
         except Exception:
             pass
         try:
+            self._rotate_activity_log()
             with get_log_path().open("a", encoding="utf-8") as handle:
                 handle.write(f"[{stamp}] [{category}] {message}\n")
         except Exception:
@@ -1283,7 +1614,13 @@ class StoriesOSCApp:
     def _autosave_tick(self) -> None:
         if self.closing:
             return
-        save_runtime_state({"current_hp": int(self.state.current_hp), "combat_enabled": bool(self.state.combat_enabled)})
+        payload = {
+            "current_hp": int(self.state.current_hp),
+            "combat_enabled": bool(self.state.combat_enabled),
+        }
+        if payload != self._last_saved_runtime_state:
+            save_runtime_state(payload)
+            self._last_saved_runtime_state = dict(payload)
         self.root.after(1000, self._autosave_tick)
 
     def open_settings_folder(self) -> None:
@@ -1306,7 +1643,12 @@ class StoriesOSCApp:
         if self.closing:
             return
         self.closing = True
-        save_runtime_state({"current_hp": int(self.state.current_hp), "combat_enabled": bool(self.state.combat_enabled)})
+        payload = {
+            "current_hp": int(self.state.current_hp),
+            "combat_enabled": bool(self.state.combat_enabled),
+        }
+        save_runtime_state(payload)
+        self._last_saved_runtime_state = dict(payload)
         try: self.osc.stop()
         except Exception: pass
         try: self.sam_client.stop()

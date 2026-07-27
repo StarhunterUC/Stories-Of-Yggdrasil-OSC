@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+release/
+Stories_Of_Yggdrasil_OSC_Windows_*.zip
+Stories_Of_Yggdrasil_OSC_Windows_*.zip.sha256

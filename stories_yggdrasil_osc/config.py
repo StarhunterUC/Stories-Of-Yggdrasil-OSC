@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 14,
+    "version": 17,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -41,7 +41,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "name": "Local RP Character",
         "maximum_hp": 1000,
         "starting_hp": 1000,
-        "critical_hp_percent": 0.25,
+        "critical_hp_percent": 0.15,
     },
     "combat": {
         "global_invulnerability_seconds": 1.0,
@@ -80,6 +80,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "device_name": "Stories OSC Desktop",
         "auto_poll": True,
         "poll_seconds": 2.0,
+        "idle_poll_seconds": 5.0,
+        "max_backoff_seconds": 60.0,
         "push_debounce_seconds": 0.30,
         "sync_hp": True,
         "sync_statuses": True,
@@ -93,6 +95,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "enabled": False,
         "enemy_key": "",
         "enemy_name": "",
+        "attacker_mode": "verified",
+        "attacker_user_id": "",
+        "attacker_char_name": "",
+        "attacker_player_label": "",
     },
     "updates": {
         "github_repo": "StarhunterUC/Stories-Of-Yggdrasil-OSC",
@@ -251,13 +257,28 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 14
+        config["version"] = 17
         updates_cfg = config.setdefault("updates", {})
         if not str(updates_cfg.get("github_repo") or "").strip():
             updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
         updates_cfg.setdefault("check_on_start", True)
         updates_cfg.setdefault("check_interval_hours", 6)
+        # v0.8.9 makes the project-wide Critical HP boundary authoritative.
+        config.setdefault("profile", {})["critical_hp_percent"] = 0.15
         sam_cfg = config.setdefault("sam", {})
+        sam_cfg.setdefault("idle_poll_seconds", 5.0)
+        sam_cfg.setdefault("max_backoff_seconds", 60.0)
+        npc_cfg = config.setdefault("npc_mode", {})
+        npc_cfg.setdefault("attacker_user_id", "")
+        npc_cfg.setdefault("attacker_char_name", "")
+        npc_cfg.setdefault("attacker_player_label", "")
+        # Existing v0.8.10 NPC profiles had no attacker identity. Preserve their
+        # behavior explicitly as compatibility fallback; new profiles default
+        # to verified server-side attacker identity.
+        if "attacker_mode" not in npc_cfg:
+            npc_cfg["attacker_mode"] = "fallback" if bool(npc_cfg.get("enabled", False)) else "verified"
+        if str(npc_cfg.get("attacker_mode") or "").lower() not in {"verified", "fallback"}:
+            npc_cfg["attacker_mode"] = "verified"
         if str(sam_cfg.get("base_url") or "").strip().rstrip("/") in {
             "http://127.0.0.1:8766",
             "http://localhost:8766",

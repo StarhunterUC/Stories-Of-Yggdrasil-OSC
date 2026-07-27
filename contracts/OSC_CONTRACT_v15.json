@@ -1,0 +1,53 @@
+{
+  "contract_version": 15,
+  "desktop_version": "0.8.11",
+  "api_minimum": "0.8.13",
+  "api_recommended": "0.8.14",
+  "unity_tool_version": "0.5.8-TB6.2",
+  "features": {
+    "verified_attacker_identity": true,
+    "server_authoritative_attacker_stats": true,
+    "npc_direct_defense_authority": true,
+    "npc_hp_independent_attack_power": true,
+    "attacker_catalog_optional": true,
+    "compatibility_fallback_explicit": true,
+    "damage_diagnostics": true
+  },
+  "desktop_to_api": {
+    "npc_attacker_user_id": "numeric Discord user ID or empty when fallback is explicitly selected",
+    "npc_attacker_char_name": "exact Sam.py character name or empty when fallback is explicitly selected",
+    "trusted_attacker_fields": [
+      "identity only"
+    ],
+    "forbidden_trusted_fields": [
+      "ATK",
+      "MAG",
+      "SPD",
+      "level",
+      "equipment",
+      "licenses"
+    ]
+  },
+  "api_to_desktop": {
+    "npc_catalog": [
+      "enemy combat profile",
+      "optional attacker roster in API 0.8.14+"
+    ],
+    "hit_result": [
+      "damage_model",
+      "damage_model_version",
+      "attacker",
+      "attacker_stats",
+      "target_stats",
+      "mitigation_percent",
+      "damage"
+    ]
+  },
+  "unity_changes_required": false,
+  "canonical_attack_contacts": [
+    "Hit By Weak Attack",
+    "Hit By Average Attack",
+    "Hit By Strong Attack",
+    "Hit By Critical Attack"
+  ]
+}
