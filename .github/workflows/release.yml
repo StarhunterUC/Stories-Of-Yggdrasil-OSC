@@ -27,10 +27,35 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
 
+      - name: Validate release metadata
+        shell: pwsh
+        run: |
+          $metadata = Get-Content "version.json" -Raw | ConvertFrom-Json
+          $version = [string]$metadata.version
+          $expectedTag = "v$version"
+          $actualTag = "${{ github.ref_name }}"
+
+          if ($actualTag -ne $expectedTag) {
+            throw "Release tag '$actualTag' does not match version.json '$expectedTag'."
+          }
+
+          $patchNotes = "PATCH_NOTES_v$version.md"
+          if (-not (Test-Path $patchNotes -PathType Leaf)) {
+            throw "Required patch notes file not found: $patchNotes"
+          }
+
+          "SOY_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SOY_PATCH_NOTES=$patchNotes" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Run tests
         shell: pwsh
         run: |
-          python -m unittest discover -s tests -p "test_*.py"
+          python -m pytest -q
+
+      - name: Run source audit
+        shell: pwsh
+        run: |
+          python audit_source.py
 
       - name: Build executable
         shell: pwsh
@@ -40,20 +65,23 @@ jobs:
       - name: Assemble release archive
         shell: pwsh
         run: |
-          $releaseRoot = "release/Stories Of Yggdrasil OSC"
+          $releaseBase = "release"
+          $releaseRoot = Join-Path $releaseBase "Stories Of Yggdrasil OSC"
+
+          Remove-Item -Recurse -Force $releaseBase -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
 
           Copy-Item "dist/Stories Of Yggdrasil OSC/*" $releaseRoot -Recurse -Force
-          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, PATCH_NOTES_v0.8.11.md, version.json $releaseRoot -Force
+          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, $env:SOY_PATCH_NOTES, version.json $releaseRoot -Force
 
           if (Test-Path "contracts") {
-            Copy-Item "contracts" "$releaseRoot/contracts" -Recurse -Force
+            Copy-Item "contracts" (Join-Path $releaseRoot "contracts") -Recurse -Force
           }
 
           $zip = "Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip"
           Compress-Archive -Path $releaseRoot -DestinationPath $zip -Force
 
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $zip" | Set-Content "$zip.sha256" -Encoding ascii
 
       - name: Publish GitHub release
