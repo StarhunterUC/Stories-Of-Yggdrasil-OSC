@@ -1,0 +1,19 @@
+{
+  "product": "Stories Of Yggdrasil OSC",
+  "version": "0.8.14",
+  "result": "PASS",
+  "tests": "\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m                   [100%]\u001b[0m\n\u001b[32m\u001b[32m\u001b[1m54 passed\u001b[0m\u001b[32m in 0.13s\u001b[0m\u001b[0m",
+  "source_audit": [
+    "Stories Of Yggdrasil OSC Desktop source audit passed.",
+    "Desktop version: 0.8.14",
+    "OSC API minimum: 0.8.13",
+    "OSC API recommended: 0.8.14",
+    "Unity Tool: 0.5.8-TB6.2",
+    "Persistent UI state, action favorites, activity grouping, encounter-cleanup suppression, NPC favorites, and sanitized support bundles are present."
+  ],
+  "changes": {
+    "libra_cleanup_suppression_seconds": 45,
+    "normal_activity_grouping_preserved": true,
+    "suppressed_duplicates_written_to_log": false
+  }
+}

@@ -237,9 +237,16 @@ class StoriesOSCApp:
             ttk.Label(logo_wrap, text="Y", background=THEME["sidebar"], foreground=THEME["gold2"], font=("Georgia", 32, "bold")).pack()
 
         self.nav_buttons: dict[str, ttk.Button] = {}
-        for key, label in (("overview", "♡  Overview"), ("recovery", "✦  Recovery"), ("connection", "↔  Connection"), ("settings", "⚙  Settings")):
+        for key, label in (
+            ("dashboard", "◈  Dashboard"),
+            ("actions", "✦  Actions"),
+            ("npc", "⚔  NPC Mode"),
+            ("connection", "↔  Connection"),
+            ("diagnostics", "⌁  Diagnostics"),
+            ("settings", "⚙  Settings"),
+        ):
             button = ttk.Button(self.sidebar, text=label, style="Nav.TButton", command=lambda k=key: self.show_page(k))
-            button.pack(fill=tk.X, padx=10, pady=4)
+            button.pack(fill=tk.X, padx=10, pady=3)
             self.nav_buttons[key] = button
         ttk.Label(self.sidebar, text=f"v{__version__}", background=THEME["sidebar"], foreground=THEME["muted"], font=("Segoe UI", 9)).pack(side=tk.BOTTOM, pady=16)
 
@@ -247,11 +254,13 @@ class StoriesOSCApp:
         self.page_host = ttk.Frame(self.content)
         self.page_host.pack(fill=tk.BOTH, expand=True, padx=22, pady=(0, 20))
         self.pages: dict[str, ttk.Frame] = {}
-        self.pages["overview"] = self._build_overview_page()
-        self.pages["recovery"] = self._build_recovery_page()
+        self.pages["dashboard"] = self._build_overview_page()
+        self.pages["actions"] = self._build_recovery_page()
+        self.pages["npc"] = self._build_npc_page()
         self.pages["connection"] = self._build_connection_page()
+        self.pages["diagnostics"] = self._build_diagnostics_page()
         self.pages["settings"] = self._build_settings_page()
-        self.show_page("overview")
+        self.show_page("dashboard")
 
         self.footer = ttk.Frame(self.content, style="Panel.TFrame")
         self.footer.pack(fill=tk.X, side=tk.BOTTOM)
@@ -288,12 +297,16 @@ class StoriesOSCApp:
         for page in self.pages.values():
             page.pack_forget()
         self.pages[key].pack(fill=tk.BOTH, expand=True)
-        if key == "recovery":
+        if key == "actions":
             self.refresh_recovery_options()
+        elif key == "npc":
+            self.refresh_npc_roster()
+        elif key == "diagnostics":
+            self._refresh_diagnostics_view()
 
     def _build_overview_page(self) -> ttk.Frame:
         page = self._new_page()
-        ttk.Label(page, text="Character Overview", style="PageTitle.TLabel").pack(anchor="w", pady=(0, 12))
+        ttk.Label(page, text="Character Combat Dashboard", style="PageTitle.TLabel").pack(anchor="w", pady=(0, 12))
         body = ttk.Frame(page)
         body.pack(fill=tk.BOTH, expand=True)
         left = self._card(body)
@@ -321,6 +334,16 @@ class StoriesOSCApp:
         self.mp_value_label.pack(side=tk.RIGHT)
         self.mp_bar = ttk.Progressbar(left, maximum=100, value=0, style="MP.Horizontal.TProgressbar")
         self.mp_bar.pack(fill=tk.X, padx=22, pady=(6, 18), ipady=7)
+
+        profile_card = ttk.Frame(left, style="CardInner.TFrame")
+        profile_card.pack(fill=tk.X, padx=22, pady=(0, 14))
+        ttk.Label(profile_card, text="Effective Combat Profile", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 5))
+        self.combat_stats_label = ttk.Label(profile_card, text="ATK —  DEF —  MAG —  RES —  SPD —  EVA —  VIT —", style="Muted.Card.TLabel", wraplength=500, justify="left")
+        self.combat_stats_label.pack(anchor="w")
+        self.affinities_label = ttk.Label(profile_card, text="Affinities: waiting for Sam.py API 0.8.14", style="Muted.Card.TLabel", wraplength=500, justify="left")
+        self.affinities_label.pack(anchor="w", pady=(3, 0))
+        self.magicks_profile_label = ttk.Label(profile_card, text="Magicks: waiting for authoritative profile", style="Muted.Card.TLabel", wraplength=500, justify="left")
+        self.magicks_profile_label.pack(anchor="w", pady=(3, 0))
 
         self.diablos_frame = ttk.Frame(left, style="CardInner.TFrame")
         diablos_head = ttk.Frame(self.diablos_frame, style="CardInner.TFrame")
@@ -373,10 +396,13 @@ class StoriesOSCApp:
         page = self._new_page()
         header = ttk.Frame(page)
         header.pack(fill=tk.X, pady=(0, 12))
-        ttk.Label(header, text="Recovery", style="PageTitle.TLabel").pack(side=tk.LEFT)
+        ttk.Label(header, text="Actions & Recovery", style="PageTitle.TLabel").pack(side=tk.LEFT)
         ttk.Button(header, text="Refresh", command=self.refresh_recovery_options).pack(side=tk.RIGHT)
         self.recovery_summary_label = ttk.Label(page, text="Potions, ethers, and restorative magick are calculated by Sam.py.", style="Muted.TLabel")
         self.recovery_summary_label.pack(anchor="w", pady=(0, 10))
+
+        self.action_availability_label = ttk.Label(page, text="Sam.py remains authoritative for Magicks, Technicks, MP costs, Silence, KO, targets, items, and cooldowns.", style="Muted.TLabel", wraplength=1000, justify="left")
+        self.action_availability_label.pack(anchor="w", pady=(0, 8))
         card = self._card(page)
         card.pack(fill=tk.BOTH, expand=True)
         self.recovery_tree = ttk.Treeview(card, columns=("kind", "name", "effect", "cost", "available"), show="headings")
@@ -436,6 +462,89 @@ class StoriesOSCApp:
         ttk.Label(osc_card, text="VRChat defaults: receive 9000, send 9001.", style="Muted.Card.TLabel").grid(row=5, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 20))
         return page
 
+    def _build_npc_page(self) -> ttk.Frame:
+        page = self._new_page()
+        header = ttk.Frame(page)
+        header.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(header, text="NPC Mode", style="PageTitle.TLabel").pack(side=tk.LEFT)
+        ttk.Button(header, text="Refresh Rosters", command=self.refresh_npc_roster).pack(side=tk.RIGHT)
+        npc_card = self._card(page)
+        npc_card.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(npc_card, text="Authoritative NPC Runtime", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", padx=20, pady=(18, 10))
+        npc_cfg = self.config.get("npc_mode", {})
+        self.npc_mode_var = tk.BooleanVar(value=bool(npc_cfg.get("enabled", False)))
+        self.npc_enemy_var = tk.StringVar(value=str(npc_cfg.get("enemy_name") or ""))
+        self.npc_attacker_mode_var = tk.StringVar(value=str(npc_cfg.get("attacker_mode") or "verified"))
+        self.npc_attacker_player_var = tk.StringVar(value=str(npc_cfg.get("attacker_player_label") or npc_cfg.get("attacker_user_id") or ""))
+        self.npc_attacker_char_var = tk.StringVar(value=str(npc_cfg.get("attacker_char_name") or ""))
+        ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var, command=self._refresh_npc_attacker_status).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=6)
+        ttk.Label(npc_card, text="NPC roster", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
+        self.npc_enemy_combo = ttk.Combobox(npc_card, textvariable=self.npc_enemy_var, values=(), state="readonly")
+        self.npc_enemy_combo.grid(row=2, column=1, columnspan=3, sticky="ew", padx=(0, 20), pady=6)
+        self.npc_enemy_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_npc_preview())
+        self.npc_preview_label = ttk.Label(npc_card, text="Select an NPC to preview its authoritative level, HP, DEF, RES, EVA, and affinities.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_preview_label.grid(row=3, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 12))
+        ttk.Separator(npc_card, orient="horizontal").grid(row=4, column=0, columnspan=4, sticky="ew", padx=20, pady=6)
+        ttk.Label(npc_card, text="Player → NPC Damage Attacker", style="CardTitle.TLabel").grid(row=5, column=0, columnspan=4, sticky="w", padx=20, pady=(8, 8))
+        ttk.Label(npc_card, text="Attacking player", style="Card.TLabel").grid(row=6, column=0, sticky="w", padx=20, pady=6)
+        self.npc_attacker_player_combo = ttk.Combobox(npc_card, textvariable=self.npc_attacker_player_var, values=(), state="normal")
+        self.npc_attacker_player_combo.grid(row=6, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
+        self.npc_attacker_player_combo.bind("<<ComboboxSelected>>", self._on_npc_attacker_player_selected)
+        self.npc_attacker_player_combo.bind("<KeyRelease>", lambda _event: self._refresh_npc_attacker_status())
+        ttk.Button(npc_card, text="Use Linked Character", command=self._use_linked_character_as_attacker).grid(row=6, column=3, sticky="e", padx=(0, 20), pady=6)
+        ttk.Label(npc_card, text="Attacking character", style="Card.TLabel").grid(row=7, column=0, sticky="w", padx=20, pady=6)
+        self.npc_attacker_char_combo = ttk.Combobox(npc_card, textvariable=self.npc_attacker_char_var, values=(), state="normal")
+        self.npc_attacker_char_combo.grid(row=7, column=1, columnspan=3, sticky="ew", padx=(0, 20), pady=6)
+        self.npc_attacker_char_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_npc_attacker_status())
+        self.npc_attacker_char_combo.bind("<KeyRelease>", lambda _event: self._refresh_npc_attacker_status())
+        ttk.Radiobutton(npc_card, text="Verified Sam.py stats", value="verified", variable=self.npc_attacker_mode_var, command=self._refresh_npc_attacker_status).grid(row=8, column=0, columnspan=2, sticky="w", padx=20, pady=4)
+        ttk.Radiobutton(npc_card, text="Compatibility fallback", value="fallback", variable=self.npc_attacker_mode_var, command=self._refresh_npc_attacker_status).grid(row=8, column=2, columnspan=2, sticky="w", padx=10, pady=4)
+        self.npc_attacker_status_label = ttk.Label(npc_card, text="", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_attacker_status_label.grid(row=9, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 6))
+        self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_hit_diagnostics_label.grid(row=10, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 6))
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. The static enemy roster is never edited, and verified attacker stats come from Sam.py API 0.8.14.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_notice_label.grid(row=11, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 16))
+        npc_card.columnconfigure(1, weight=1)
+        npc_card.columnconfigure(2, weight=1)
+        self._refresh_npc_attacker_status()
+        return page
+
+    def _build_diagnostics_page(self) -> ttk.Frame:
+        page = self._new_page()
+        header = ttk.Frame(page)
+        header.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(header, text="Diagnostics", style="PageTitle.TLabel").pack(side=tk.LEFT)
+        ttk.Button(header, text="Test Sam.py", command=self.test_sam_connection).pack(side=tk.RIGHT)
+        card = self._card(page)
+        card.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(card, text="Connection & Contract", style="CardTitle.TLabel").pack(anchor="w", padx=20, pady=(18, 8))
+        self.diagnostics_summary_label = ttk.Label(card, text="Waiting for Sam.py state…", style="Muted.Card.TLabel", wraplength=980, justify="left")
+        self.diagnostics_summary_label.pack(anchor="w", padx=20, pady=(0, 8))
+        self.diagnostics_detail_label = ttk.Label(card, text="No diagnostics have been received.", style="Muted.Card.TLabel", wraplength=980, justify="left")
+        self.diagnostics_detail_label.pack(anchor="w", padx=20, pady=(0, 18))
+        info = self._card(page)
+        info.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(info, text="Audit Guidance", style="CardTitle.TLabel").pack(anchor="w", padx=20, pady=(18, 8))
+        ttk.Label(info, text="API 0.8.14 verifies the NPC attacker roster, authoritative player writes, combat-profile data, and effective affinities. Rejected actions should appear as structured messages instead of HTTP 500 errors. Review Recent Activity for the last local OSC event and this page for server compatibility.", style="Muted.Card.TLabel", wraplength=980, justify="left").pack(anchor="w", padx=20, pady=(0, 18))
+        return page
+
+    def _refresh_diagnostics_view(self) -> None:
+        if not hasattr(self, "diagnostics_summary_label"):
+            return
+        paired = bool(str(self.config.get("sam", {}).get("token") or "").strip())
+        api = self.sam_api_version or "unknown"
+        profile = self.remote_state.get("combat_profile") if isinstance(self.remote_state.get("combat_profile"), dict) else {}
+        caps = self.remote_state.get("capabilities") if isinstance(self.remote_state.get("capabilities"), dict) else {}
+        self.diagnostics_summary_label.configure(text=f"Sam.py: {'paired' if paired else 'not paired'}  •  API {api}  •  Desktop minimum {OSC_API_MINIMUM} / recommended {OSC_API_RECOMMENDED}  •  OSC listener: {'running' if self.osc.running else 'stopped'}")
+        details = [
+            f"Combat profile: {'available' if profile else 'waiting'}",
+            f"Effective affinities: {'available' if profile.get('affinities') else 'waiting'}",
+            f"Attacker catalog: {'loaded' if self.npc_attacker_roster else 'waiting'}",
+            f"Last event: {self.last_event}",
+        ]
+        self.diagnostics_detail_label.configure(text="\n".join(details))
+
     def _build_settings_page(self) -> ttk.Frame:
         page = self._new_page()
         ttk.Label(page, text="Settings", style="PageTitle.TLabel").pack(anchor="w", pady=(0, 12))
@@ -443,8 +552,14 @@ class StoriesOSCApp:
         scrollbar = ttk.Scrollbar(page, orient="vertical", command=canvas.yview)
         body = ttk.Frame(canvas)
         body.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=body, anchor="nw")
+        settings_window = canvas.create_window((0, 0), window=body, anchor="nw")
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(settings_window, width=max(1, event.width)))
         canvas.configure(yscrollcommand=scrollbar.set)
+        def _settings_wheel(event):
+            delta = -1 if event.delta > 0 else 1
+            canvas.yview_scroll(delta * 3, "units")
+        canvas.bind("<Enter>", lambda _e: canvas.bind_all("<MouseWheel>", _settings_wheel))
+        canvas.bind("<Leave>", lambda _e: canvas.unbind_all("<MouseWheel>"))
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -471,12 +586,13 @@ class StoriesOSCApp:
 
         damage = self._card(body)
         damage.pack(fill=tk.X, pady=10)
-        ttk.Label(damage, text="Contact Damage", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", padx=20, pady=(18, 10))
+        ttk.Label(damage, text="Offline / Compatibility Contact Damage", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", padx=20, pady=(18, 10))
+        ttk.Label(damage, text="Used only when Sam.py is unavailable or an older compatibility client is active. Paired combat damage is calculated by Sam.py.", style="Muted.Card.TLabel", wraplength=900, justify="left").grid(row=1, column=0, columnspan=4, sticky="w", padx=20, pady=(0, 8))
         self.damage_vars: dict[str, tk.StringVar] = {}
         for index, key in enumerate(("weak", "average", "strong", "critical")):
             var = tk.StringVar(value=str(combat["damage"][key]))
             self.damage_vars[key] = var
-            self._entry(damage, 1 + index // 2, key.title(), var, col=(index % 2) * 2)
+            self._entry(damage, 2 + index // 2, key.title(), var, col=(index % 2) * 2)
         for col in (1, 3): damage.columnconfigure(col, weight=1)
 
         avatar = self._card(body)
@@ -494,50 +610,6 @@ class StoriesOSCApp:
         ttk.Checkbutton(avatar, text="Drive avatar Health from Sam.py", variable=self.drive_health_var).grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=5)
         ttk.Checkbutton(avatar, text="Drive avatar status parameters from Sam.py", variable=self.drive_status_var).grid(row=3, column=2, columnspan=2, sticky="w", padx=20, pady=(5, 16))
         avatar.columnconfigure(1, weight=1)
-
-        npc_card = self._card(body)
-        npc_card.pack(fill=tk.X, pady=10)
-        ttk.Label(npc_card, text="NPC Mode", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", padx=20, pady=(18, 10))
-        npc_cfg = self.config.get("npc_mode", {})
-        self.npc_mode_var = tk.BooleanVar(value=bool(npc_cfg.get("enabled", False)))
-        self.npc_enemy_var = tk.StringVar(value=str(npc_cfg.get("enemy_name") or ""))
-        self.npc_attacker_mode_var = tk.StringVar(value=str(npc_cfg.get("attacker_mode") or "verified"))
-        self.npc_attacker_player_var = tk.StringVar(value=str(npc_cfg.get("attacker_player_label") or npc_cfg.get("attacker_user_id") or ""))
-        self.npc_attacker_char_var = tk.StringVar(value=str(npc_cfg.get("attacker_char_name") or ""))
-        ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var, command=self._refresh_npc_attacker_status).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=6)
-        ttk.Label(npc_card, text="NPC roster", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
-        self.npc_enemy_combo = ttk.Combobox(npc_card, textvariable=self.npc_enemy_var, values=(), state="readonly")
-        self.npc_enemy_combo.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
-        self.npc_enemy_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_npc_preview())
-        ttk.Button(npc_card, text="Refresh Rosters", command=self.refresh_npc_roster).grid(row=2, column=3, sticky="e", padx=(0, 20), pady=6)
-        self.npc_preview_label = ttk.Label(npc_card, text="Select an NPC to preview its authoritative level, HP, DEF, RES, EVA, and affinities.", style="Muted.Card.TLabel", wraplength=900, justify="left")
-        self.npc_preview_label.grid(row=3, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 10))
-
-        ttk.Separator(npc_card, orient="horizontal").grid(row=4, column=0, columnspan=4, sticky="ew", padx=20, pady=6)
-        ttk.Label(npc_card, text="Player → NPC Damage Attacker", style="CardTitle.TLabel").grid(row=5, column=0, columnspan=4, sticky="w", padx=20, pady=(8, 8))
-        ttk.Label(npc_card, text="Attacking player", style="Card.TLabel").grid(row=6, column=0, sticky="w", padx=20, pady=6)
-        self.npc_attacker_player_combo = ttk.Combobox(npc_card, textvariable=self.npc_attacker_player_var, values=(), state="normal")
-        self.npc_attacker_player_combo.grid(row=6, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
-        self.npc_attacker_player_combo.bind("<<ComboboxSelected>>", self._on_npc_attacker_player_selected)
-        self.npc_attacker_player_combo.bind("<KeyRelease>", lambda _event: self._refresh_npc_attacker_status())
-        ttk.Button(npc_card, text="Use Linked Character", command=self._use_linked_character_as_attacker).grid(row=6, column=3, sticky="e", padx=(0, 20), pady=6)
-
-        ttk.Label(npc_card, text="Attacking character", style="Card.TLabel").grid(row=7, column=0, sticky="w", padx=20, pady=6)
-        self.npc_attacker_char_combo = ttk.Combobox(npc_card, textvariable=self.npc_attacker_char_var, values=(), state="normal")
-        self.npc_attacker_char_combo.grid(row=7, column=1, columnspan=2, sticky="ew", padx=(0, 10), pady=6)
-        self.npc_attacker_char_combo.bind("<<ComboboxSelected>>", lambda _event: self._refresh_npc_attacker_status())
-        self.npc_attacker_char_combo.bind("<KeyRelease>", lambda _event: self._refresh_npc_attacker_status())
-        ttk.Radiobutton(npc_card, text="Verified stats", value="verified", variable=self.npc_attacker_mode_var, command=self._refresh_npc_attacker_status).grid(row=8, column=0, columnspan=2, sticky="w", padx=20, pady=4)
-        ttk.Radiobutton(npc_card, text="Compatibility fallback", value="fallback", variable=self.npc_attacker_mode_var, command=self._refresh_npc_attacker_status).grid(row=8, column=2, columnspan=2, sticky="w", padx=10, pady=4)
-        self.npc_attacker_status_label = ttk.Label(npc_card, text="", style="Muted.Card.TLabel", wraplength=900, justify="left")
-        self.npc_attacker_status_label.grid(row=9, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 6))
-        self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=900, justify="left")
-        self.npc_hit_diagnostics_label.grid(row=10, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 6))
-        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy; the static enemy roster is never edited.", style="Muted.Card.TLabel", wraplength=900, justify="left")
-        self.npc_notice_label.grid(row=11, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 16))
-        npc_card.columnconfigure(1, weight=1)
-        npc_card.columnconfigure(2, weight=1)
-        self._refresh_npc_attacker_status()
 
         update_card = self._card(body)
         update_card.pack(fill=tk.X, pady=10)
@@ -1506,6 +1578,7 @@ class StoriesOSCApp:
             bool(osc_state_for_signature.get("diablos_applicable", False)),
             round(coerce_percent(osc_state_for_signature.get("diablos_percent", 0)), 3),
             bool(str(self.config.get("sam", {}).get("token") or "").strip()),
+            repr(self.remote_state.get("combat_profile", {})),
         )
         if ui_signature == self._last_ui_signature:
             return
@@ -1543,6 +1616,25 @@ class StoriesOSCApp:
         else:
             self.character_name_label.configure(text=str(self.config["profile"].get("name") or "Local Character"))
             self.character_meta_label.configure(text="Pair with Sam.py to load class, race, MP, inventory, and recovery options.")
+
+        profile = self.remote_state.get("combat_profile") if isinstance(self.remote_state.get("combat_profile"), dict) else {}
+        stats = profile.get("stats") if isinstance(profile.get("stats"), dict) else {}
+        if stats:
+            self.combat_stats_label.configure(text="  •  ".join(f"{key} {int(stats.get(key, 0) or 0)}" for key in ("ATK", "DEF", "MAG", "RES", "SPD", "EVA", "VIT")))
+        else:
+            self.combat_stats_label.configure(text="ATK —  DEF —  MAG —  RES —  SPD —  EVA —  VIT —")
+        affinities = profile.get("affinities") if isinstance(profile.get("affinities"), dict) else {}
+        affinity_text = ", ".join(f"{name}: {relation.title()}" for name, relation in sorted(affinities.items())) or "None reported"
+        self.affinities_label.configure(text=f"Affinities: {affinity_text}")
+        magicks = profile.get("magicks") if isinstance(profile.get("magicks"), list) else []
+        magick_names = [f"{row.get('name')} ({row.get('mp_cost', 0)} MP)" for row in magicks[:8] if isinstance(row, dict)]
+        extra = f" +{len(magicks)-8} more" if len(magicks) > 8 else ""
+        self.magicks_profile_label.configure(text="Magicks: " + (", ".join(magick_names) + extra if magick_names else "None available or profile pending"))
+        if hasattr(self, "action_availability_label"):
+            blockers = profile.get("casting_blockers") if isinstance(profile.get("casting_blockers"), list) else []
+            tech_count = len(profile.get("technicks") or []) if isinstance(profile.get("technicks"), list) else 0
+            self.action_availability_label.configure(text=f"Authoritative profile: {len(magicks)} Magick(s), {tech_count} Technick(s). Casting blockers: {', '.join(blockers) if blockers else 'None'}.")
+        self._refresh_diagnostics_view()
 
         active = snap.get("statuses", {})
         for key, label in self.status_labels.items():

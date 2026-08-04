@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 17,
+    "version": 18,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -99,6 +99,24 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "attacker_user_id": "",
         "attacker_char_name": "",
         "attacker_player_label": "",
+    },
+    "ui": {
+        "last_page": "dashboard",
+        "window_geometry": "1220x760",
+        "scale": 1.0,
+        "reduced_motion": False,
+        "compact_mode": False,
+        "activity_filter": "All",
+        "activity_search": "",
+        "activity_paused": False,
+        "action_filter": "All",
+        "action_search": "",
+        "action_favorites_only": False,
+        "action_favorites": [],
+        "npc_search": "",
+        "npc_favorites_only": False,
+        "npc_favorites": [],
+        "recent_npcs": [],
     },
     "updates": {
         "github_repo": "StarhunterUC/Stories-Of-Yggdrasil-OSC",
@@ -257,7 +275,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 17
+        config["version"] = 18
         updates_cfg = config.setdefault("updates", {})
         if not str(updates_cfg.get("github_repo") or "").strip():
             updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
@@ -268,6 +286,23 @@ def load_config() -> dict[str, Any]:
         sam_cfg = config.setdefault("sam", {})
         sam_cfg.setdefault("idle_poll_seconds", 5.0)
         sam_cfg.setdefault("max_backoff_seconds", 60.0)
+        ui_cfg = config.setdefault("ui", {})
+        ui_cfg.setdefault("last_page", "dashboard")
+        ui_cfg.setdefault("window_geometry", "1220x760")
+        ui_cfg.setdefault("scale", 1.0)
+        ui_cfg.setdefault("reduced_motion", False)
+        ui_cfg.setdefault("compact_mode", False)
+        ui_cfg.setdefault("activity_filter", "All")
+        ui_cfg.setdefault("activity_search", "")
+        ui_cfg.setdefault("activity_paused", False)
+        ui_cfg.setdefault("action_filter", "All")
+        ui_cfg.setdefault("action_search", "")
+        ui_cfg.setdefault("action_favorites_only", False)
+        ui_cfg.setdefault("action_favorites", [])
+        ui_cfg.setdefault("npc_search", "")
+        ui_cfg.setdefault("npc_favorites_only", False)
+        ui_cfg.setdefault("npc_favorites", [])
+        ui_cfg.setdefault("recent_npcs", [])
         npc_cfg = config.setdefault("npc_mode", {})
         npc_cfg.setdefault("attacker_user_id", "")
         npc_cfg.setdefault("attacker_char_name", "")

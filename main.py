@@ -5,7 +5,7 @@ import os
 import sys
 from typing import Any
 
-from stories_yggdrasil_osc.app import run
+from stories_yggdrasil_osc.app_v0814 import run
 
 _MUTEX_NAME = r"Local\StoriesOfYggdrasilOSCDesktop"
 _ERROR_ALREADY_EXISTS = 183

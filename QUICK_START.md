@@ -1,4 +1,4 @@
-# Quick Start — Desktop v0.8.11
+# Quick Start — Desktop v0.8.14
 
 1. Run `Start Stories OSC.bat`.
 2. Pair the Desktop with Sam.py using `/osc_link`.
@@ -23,7 +23,15 @@ Use **Compatibility fallback** only for transition testing. It does not use a re
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ".\BUILD_AND_PACKAGE_v0.8.11.ps1"
+powershell -ExecutionPolicy Bypass -File ".\BUILD_AND_PACKAGE_v0.8.14.ps1"
 ```
 
 The script prepares the environment, runs tests and the source audit, builds the Windows executable, creates the release ZIP, and writes its SHA-256 checksum.
+
+
+## QOL shortcuts
+
+- Use **Reconnect All** in the global header after changing worlds or reconnecting VRChat.
+- Favorite common Actions to place them in Quick Actions.
+- Pause Recent Activity to inspect entries without stopping collection.
+- Use **Diagnostics → Create Support Bundle** before reporting an issue. The bundle redacts tokens and Discord IDs.

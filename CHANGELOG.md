@@ -1,6 +1,37 @@
 # Changelog
 
-## v0.8.11 — Verified Player → NPC damage identity
+## v0.8.14
+
+- Suppresses duplicate `Libra was cleared because the encounter ended` notices for 45 seconds.
+- Shows one encounter-cleanup entry instead of incrementing it to `×2`, `×3`, or `×4`.
+- Prevents suppressed cleanup duplicates from being written repeatedly to `events.log`.
+- Keeps normal damage, healing, status, connection, and error grouping unchanged.
+
+## v0.8.13 — Daily-use QOL overhaul
+
+- Persists window geometry, last page, filters, searches, favorites, and NPC selections.
+- Adds a global Sam.py / VRChat / Avatar / RP Combat / DM Gate / API / Sync status strip.
+- Adds Reconnect All and Copy Diagnostics actions.
+- Rebuilds Actions with search, type filters, favorites, quick actions, costs, readiness, and exact blocker reasons.
+- Adds activity search, category filters, pause/resume, duplicate grouping, view-only clearing, saved-log erasure, and copy support.
+- Adds NPC search, favorites, recent-selection persistence, and a safe Disable NPC Mode control.
+- Adds UI scaling, reduced motion, compact-mode preference, and automatic UI-state persistence.
+- Adds sanitized support-bundle export with token and Discord-ID redaction.
+- Keeps Sam.py authoritative and requires OSC API 0.8.13 minimum / 0.8.14 recommended.
+- Automated verification: 52 tests passed plus GUI navigation smoke test.
+
+# 0.8.12
+
+- Rebuilt the Desktop navigation into Dashboard, Actions, NPC Mode, Connection, Diagnostics, and Settings.
+- Added Sam.py API 0.8.14 combat-profile display for effective stats, equipment affinities, status immunities, Magicks, MP costs, Technicks, and casting blockers.
+- Moved NPC Mode out of Settings and added verified attacker-roster diagnostics.
+- Fixed Settings width synchronization and mouse-wheel scrolling.
+- Relabeled local Contact damage as Offline / Compatibility behavior while paired damage remains Sam.py-authoritative.
+- Requires the included Sam.py v1.7.61 / Admin v5.23.94 / Fight v4.4.158 server repair.
+
+# Changelog
+
+## v0.8.12 — Verified Player → NPC damage identity
 
 - Adds an Attacking Player and Attacking Character workflow to Desktop NPC Mode.
 - Sends only `npc_attacker_user_id` and `npc_attacker_char_name`; Sam.py remains authoritative for level, ATK, MAG, SPD, equipment, licenses, KO state, and final damage.

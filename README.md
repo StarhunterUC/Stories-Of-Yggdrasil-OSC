@@ -1,9 +1,14 @@
-# Stories Of Yggdrasil OSC v0.8.11
+# Stories Of Yggdrasil OSC v0.8.14
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
 
 
-## v0.8.11 verified Player → NPC damage
+## v0.8.14
+
+Desktop v0.8.14 keeps Sam.py authoritative while making the program easier to use during VRChat sessions. The global header shows Sam.py, VRChat, avatar, RP Combat, Dungeon Master Gate, API, and sync status on every page. Actions can be searched, filtered, favorited, and reviewed with exact availability reasons. Recent Activity supports filtering, search, pause, duplicate grouping, encounter-cleanup suppression, and copy controls. NPC Mode adds search and favorites. Window state and UI preferences persist automatically, and Diagnostics can generate a sanitized support bundle.
+
+
+## v0.8.12 verified Player → NPC damage
 
 NPC Mode now identifies the player and exact Sam.py character attacking the selected NPC. The Desktop sends identity only; Sam.py retrieves the live character record and calculates damage from the player's current level and offensive stats against the NPC runtime's authoritative level, DEF, RES, EVA, VIT, and affinities.
 
@@ -26,12 +31,14 @@ Only one Desktop instance may run per Windows user session. A second launch disp
 
 ## Interface
 
-The normal interface contains four focused pages:
+The normal interface contains six focused pages:
 
-- **Overview** — linked character, HP, MP, RP Combat, statuses, Dungeon Master gate, and recent activity.
-- **Recovery** — usable potions, ethers, revival items, and restorative magick.
+- **Dashboard** — linked character, HP, MP, effective combat profile, statuses, Dungeon Master gate, and filtered recent activity.
+- **Actions** — searchable recovery, Magicks, Technicks, favorites, costs, and availability reasons.
+- **NPC Mode** — searchable enemy roster, favorites, verified attacker selection, and hit diagnostics.
 - **Connection** — Sam.py pairing and VRChat OSC listener state.
-- **Settings** — ports, damage values, avatar bridge behavior, and GitHub update settings.
+- **Diagnostics** — contract checks, reconnect controls, copied summaries, and sanitized support bundles.
+- **Settings** — ports, compatibility damage, avatar bridge behavior, UI scaling, accessibility, and update settings.
 
 Debugging and manual-test pages are not part of the normal interface.
 
