@@ -340,7 +340,7 @@ class StoriesOSCApp:
         ttk.Label(profile_card, text="Effective Combat Profile", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 5))
         self.combat_stats_label = ttk.Label(profile_card, text="ATK —  DEF —  MAG —  RES —  SPD —  EVA —  VIT —", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.combat_stats_label.pack(anchor="w")
-        self.affinities_label = ttk.Label(profile_card, text="Affinities: waiting for Sam.py API 0.8.14", style="Muted.Card.TLabel", wraplength=500, justify="left")
+        self.affinities_label = ttk.Label(profile_card, text="Affinities: waiting for Sam.py API 0.8.16", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.affinities_label.pack(anchor="w", pady=(3, 0))
         self.magicks_profile_label = ttk.Label(profile_card, text="Magicks: waiting for authoritative profile", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.magicks_profile_label.pack(anchor="w", pady=(3, 0))
@@ -503,7 +503,7 @@ class StoriesOSCApp:
         self.npc_attacker_status_label.grid(row=9, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 6))
         self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_hit_diagnostics_label.grid(row=10, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 6))
-        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. The static enemy roster is never edited, and verified attacker stats come from Sam.py API 0.8.14.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. The static enemy roster is never edited, and verified attacker stats come from Sam.py API 0.8.16.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_notice_label.grid(row=11, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 16))
         npc_card.columnconfigure(1, weight=1)
         npc_card.columnconfigure(2, weight=1)
@@ -526,7 +526,7 @@ class StoriesOSCApp:
         info = self._card(page)
         info.pack(fill=tk.BOTH, expand=True)
         ttk.Label(info, text="Audit Guidance", style="CardTitle.TLabel").pack(anchor="w", padx=20, pady=(18, 8))
-        ttk.Label(info, text="API 0.8.14 verifies the NPC attacker roster, authoritative player writes, combat-profile data, and effective affinities. Rejected actions should appear as structured messages instead of HTTP 500 errors. Review Recent Activity for the last local OSC event and this page for server compatibility.", style="Muted.Card.TLabel", wraplength=980, justify="left").pack(anchor="w", padx=20, pady=(0, 18))
+        ttk.Label(info, text="API 0.8.16 verifies the NPC attacker roster, authoritative player writes, combat-profile data, and effective affinities. Rejected actions should appear as structured messages instead of HTTP 500 errors. Review Recent Activity for the last local OSC event and this page for server compatibility.", style="Muted.Card.TLabel", wraplength=980, justify="left").pack(anchor="w", padx=20, pady=(0, 18))
         return page
 
     def _refresh_diagnostics_view(self) -> None:

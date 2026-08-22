@@ -1,6 +1,11 @@
-# Stories Of Yggdrasil OSC v0.8.14
+# Stories Of Yggdrasil OSC v0.8.15
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
+
+
+## v0.8.15
+
+Desktop v0.8.15 focuses on Sam.py connection reliability. Temporary VPS/API outages preserve pairing, retain the newest pending sync payload, cap reconnect backoff, and force a full authoritative state refresh after recovery. The Dashboard now distinguishes connected, reconnecting, paired, and off states and marks the DM Gate as stale during an outage instead of treating the cached state as a new authoritative change. OSC API v0.8.13 remains the minimum; v0.8.16 is recommended. No Unity Tool or Contact changes are required.
 
 
 ## v0.8.14

@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 18,
+    "version": 19,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -81,7 +81,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "auto_poll": True,
         "poll_seconds": 2.0,
         "idle_poll_seconds": 5.0,
-        "max_backoff_seconds": 60.0,
+        "max_backoff_seconds": 10.0,
         "push_debounce_seconds": 0.30,
         "sync_hp": True,
         "sync_statuses": True,
@@ -275,7 +275,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 18
+        config["version"] = 19
         updates_cfg = config.setdefault("updates", {})
         if not str(updates_cfg.get("github_repo") or "").strip():
             updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
@@ -285,7 +285,15 @@ def load_config() -> dict[str, Any]:
         config.setdefault("profile", {})["critical_hp_percent"] = 0.15
         sam_cfg = config.setdefault("sam", {})
         sam_cfg.setdefault("idle_poll_seconds", 5.0)
-        sam_cfg.setdefault("max_backoff_seconds", 60.0)
+        sam_cfg.setdefault("max_backoff_seconds", 10.0)
+        # v0.8.15: the previous default could sleep for 60 seconds after a
+        # short VPS/API interruption. Migrate that legacy value down so an
+        # existing installation actually receives the reconnect repair.
+        try:
+            if float(sam_cfg.get("max_backoff_seconds", 10.0) or 10.0) > 15.0:
+                sam_cfg["max_backoff_seconds"] = 10.0
+        except Exception:
+            sam_cfg["max_backoff_seconds"] = 10.0
         ui_cfg = config.setdefault("ui", {})
         ui_cfg.setdefault("last_page", "dashboard")
         ui_cfg.setdefault("window_geometry", "1220x760")

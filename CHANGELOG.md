@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.15 — Connection Reliability Repair
+
+- Preserves pairing tokens during temporary network/API failures.
+- Retains and retries failed local `/sync` payloads instead of silently dropping the newest complete OSC state.
+- Caps poll recovery at 15 seconds with a 10-second default instead of allowing 60-second outage backoff.
+- Requests a full authoritative `/state` snapshot on the first successful poll after an outage.
+- Distinguishes CONNECTED, RECONNECTING, PAIRED, and OFF in the Desktop dashboard.
+- Shows DM Gate as stale during an outage while preserving the last authoritative OPEN/CLOSED state.
+- Migrates legacy 60-second maximum backoff settings to 10 seconds.
+- Keeps Sam.py authoritative and recommends OSC API v0.8.16; no Unity Tool/contact changes are required.
+
 ## v0.8.14
 
 - Suppresses duplicate `Libra was cleared because the encounter ended` notices for 45 seconds.

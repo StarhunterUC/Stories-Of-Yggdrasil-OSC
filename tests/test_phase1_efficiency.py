@@ -56,4 +56,4 @@ def test_outage_backoff_is_capped():
     client._last_combat_enabled = False
     client._last_state_changed_at = 0.0
     client._consecutive_poll_failures = 10
-    assert client._poll_interval(client._snapshot_config()) == 60.0
+    assert client._poll_interval(client._snapshot_config()) == 15.0

@@ -1,0 +1,36 @@
+{
+  "contract_version": 16,
+  "desktop_version": "0.8.15",
+  "api_minimum": "0.8.13",
+  "api_recommended": "0.8.16",
+  "unity_tool_version": "0.5.8-TB6.2",
+  "features": {
+    "dm_lease_seconds": 180,
+    "dm_reload_preserves_session": true,
+    "dm_pagehide_does_not_close": true,
+    "dm_transient_state_is_stale_not_closed": true,
+    "pairing_persists_through_transport_outage": true,
+    "failed_sync_payload_retried": true,
+    "full_state_refresh_after_reconnect": true,
+    "maximum_transport_backoff_seconds": 15,
+    "default_transport_backoff_seconds": 10
+  },
+  "connection_states": [
+    "connected",
+    "reconnecting",
+    "paired",
+    "off"
+  ],
+  "dm_gate_display_states": [
+    "open",
+    "closed",
+    "stale_last_open",
+    "stale_last_closed"
+  ],
+  "server_authority": {
+    "pair_token": "persists unless explicitly unlinked/revoked",
+    "dm_gate": "authoritative Sam.py DM lease state",
+    "character_state": "authoritative Sam.py linked-character state"
+  },
+  "unity_changes_required": false
+}

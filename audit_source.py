@@ -8,7 +8,7 @@ from stories_yggdrasil_osc import __version__
 ROOT = Path(__file__).resolve().parent
 metadata = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
 
-expected = "0.8.14"
+expected = "0.8.15"
 if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
 if str(metadata.get("version")) != expected:
@@ -36,22 +36,28 @@ required_markers = {
         "should_suppress_activity_repeat",
     ],
     "stories_yggdrasil_osc/config.py": [
-        '"version": 18',
+        '"version": 19',
         '"window_geometry"',
         '"action_favorites"',
         '"npc_favorites"',
     ],
     "contracts/OSC_CONTRACT_v15.json": ["verified_attacker_identity"],
+    "contracts/OSC_CONTRACT_v16.json": ["pairing_persists_through_transport_outage", "full_state_refresh_after_reconnect"],
+    "stories_yggdrasil_osc/sam_client.py": [
+        '"connection_state": "reconnecting"',
+        "max_backoff = min(15.0, configured_backoff)",
+        "def _poll_path(self)",
+    ],
 }
 for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
     for marker in markers:
         if marker not in text:
-            raise SystemExit(f"Missing v0.8.14 marker {marker!r} in {relative}")
+            raise SystemExit(f"Missing v0.8.15 marker {marker!r} in {relative}")
 
 print("Stories Of Yggdrasil OSC Desktop source audit passed.")
 print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print("Persistent UI state, action favorites, activity grouping, encounter-cleanup suppression, NPC favorites, and sanitized support bundles are present.")
+print("Persistent UI state, connection-recovery safeguards, retained sync retries, capped outage backoff, and authoritative state refresh are present.")

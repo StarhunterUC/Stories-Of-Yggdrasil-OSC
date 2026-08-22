@@ -1,8 +1,8 @@
-# Quick Start — Desktop v0.8.14
+# Quick Start — Desktop v0.8.15
 
 1. Run `Start Stories OSC.bat`.
 2. Pair the Desktop with Sam.py using `/osc_link`.
-3. Confirm the Connection page reports OSC API v0.8.13 or newer.
+3. Confirm the Connection page reports OSC API v0.8.13 or newer (v0.8.16 recommended for Desktop v0.8.15).
 4. Publish the avatar after Unity Tool v0.5.8 TB6.2 has installed or repaired the current Contacts.
 5. Enable RP Combat and open the Dungeon Master gate before testing VRChat-triggered actions.
 
@@ -23,7 +23,7 @@ Use **Compatibility fallback** only for transition testing. It does not use a re
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ".\BUILD_AND_PACKAGE_v0.8.14.ps1"
+powershell -ExecutionPolicy Bypass -File ".\BUILD_AND_PACKAGE_v0.8.15.ps1"
 ```
 
 The script prepares the environment, runs tests and the source audit, builds the Windows executable, creates the release ZIP, and writes its SHA-256 checksum.

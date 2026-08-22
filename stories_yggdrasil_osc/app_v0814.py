@@ -33,7 +33,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.14 daily-use QOL layer over the stable v0.8.12 bridge."""
+    """v0.8.15 reliability/QOL layer over the stable bridge."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -42,6 +42,8 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             self._base_tk_scaling = 1.3333333333
         self.current_page = "dashboard"
         self.last_sam_success_epoch = 0.0
+        self.sam_connection_state = "paired"
+        self.sam_last_connection_error = ""
         self._ui_dirty = False
         self._last_action_signature: tuple[Any, ...] | None = None
         self._activity_view_suspended = False
@@ -517,7 +519,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self.npc_attacker_status_label.grid(row=10, column=0, columnspan=5, sticky="w", padx=20, pady=(4, 6))
         self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_hit_diagnostics_label.grid(row=11, column=0, columnspan=5, sticky="w", padx=20, pady=(2, 6))
-        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. Verified attacker stats come from Sam.py API 0.8.14.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. Verified attacker stats come from Sam.py API 0.8.16.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_notice_label.grid(row=12, column=0, columnspan=5, sticky="w", padx=20, pady=(4, 16))
         for column in (1, 2, 3):
             npc_card.columnconfigure(column, weight=1)
@@ -740,9 +742,22 @@ class StoriesOSCAppV0814(StoriesOSCApp):
     # Sam event and refresh enhancements
     # ------------------------------------------------------------------
     def _handle_sam_event(self, event) -> None:
+        # Poll outages are transport failures, not pairing revocations and not
+        # authoritative DM-gate closures. Preserve the last state and show a
+        # reconnecting condition instead of turning the dashboard red/"closed".
+        if not event.ok and event.kind == "poll":
+            self.sam_connection_state = "reconnecting"
+            self.sam_last_connection_error = str(event.message or "Temporary Sam.py connection loss")
+            self.sam_status_label.configure(text=f"Reconnecting to Sam.py… {self.sam_last_connection_error}", foreground=THEME["gold2"])
+            self._append_activity("SAM LINK", f"Temporary connection loss; pairing preserved. {self.sam_last_connection_error}")
+            self._refresh_global_status()
+            return
         super()._handle_sam_event(event)
         if event.ok:
             self.last_sam_success_epoch = time.time()
+            if event.kind in {"connection", "state", "paired", "test"}:
+                self.sam_connection_state = "connected"
+                self.sam_last_connection_error = ""
         if event.kind == "npc_catalog" and event.ok:
             self._refresh_npc_values()
         if event.kind in {"recovery_options", "state", "paired", "test"} and event.ok:
@@ -792,19 +807,34 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             return
         now = time.time()
         paired = bool(str(self.config.get("sam", {}).get("token") or "").strip())
-        sam_recent = bool(self.last_sam_success_epoch and now - self.last_sam_success_epoch <= 30)
+        sam_recent = bool(self.last_sam_success_epoch and now - self.last_sam_success_epoch <= 20)
+        sam_stale = bool(paired and not sam_recent and self.last_sam_success_epoch)
         vrchat_recent = bool(self.controller.last_input_at and time.monotonic() - self.controller.last_input_at <= float(self.config["osc"].get("activity_timeout_seconds", 5.0)))
         avatar = self.last_avatar_id != "—"
         gate = self.remote_state.get("dm_gate") if isinstance(self.remote_state.get("dm_gate"), dict) else {}
         api = self.sam_api_version or "—"
         sync_text = "never" if not self.last_sam_success_epoch else f"{max(0, int(now - self.last_sam_success_epoch))}s ago"
 
+        if sam_recent:
+            sam_text, sam_style = "SAM CONNECTED", "on"
+        elif paired and self.sam_connection_state == "reconnecting":
+            sam_text, sam_style = "SAM RECONNECTING", "warn"
+        elif paired:
+            sam_text, sam_style = "SAM PAIRED", "warn"
+        else:
+            sam_text, sam_style = "SAM OFF", "off"
+        if sam_stale or self.sam_connection_state == "reconnecting":
+            gate_text = f"DM GATE STALE · LAST {'OPEN' if gate.get('active') else 'CLOSED'}"
+            gate_style = "warn"
+        else:
+            gate_text = f"DM GATE {'OPEN' if gate.get('active') else 'CLOSED'}"
+            gate_style = "on" if gate.get("active") else "off"
         values = {
-            "sam": (f"SAM {'CONNECTED' if sam_recent else 'PAIRED' if paired else 'OFF'}", "on" if sam_recent else "warn" if paired else "off"),
+            "sam": (sam_text, sam_style),
             "vrchat": (f"VRCHAT {'ACTIVE' if vrchat_recent else 'LISTENING' if self.osc.running else 'OFF'}", "on" if vrchat_recent else "warn" if self.osc.running else "off"),
             "avatar": (f"AVATAR {'DETECTED' if avatar else 'WAITING'}", "on" if avatar else "warn"),
             "combat": (f"RP COMBAT {'ON' if self.state.combat_enabled else 'OFF'}", "on" if self.state.combat_enabled else "off"),
-            "gate": (f"DM GATE {'OPEN' if gate.get('active') else 'CLOSED'}", "on" if gate.get("active") else "off"),
+            "gate": (gate_text, gate_style),
             "api": (f"API {api}", "on" if api != "—" and self._version_tuple(api) >= self._version_tuple(OSC_API_MINIMUM) else "warn"),
             "sync": (f"SYNC {sync_text}", "on" if sam_recent else "warn"),
         }

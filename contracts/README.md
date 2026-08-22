@@ -27,3 +27,5 @@ Desktop v0.8.6 keeps Stories control parameters active even when the avatar brid
 
 - `OSC_CONTRACT_v15.json` — Desktop v0.8.12 / API v0.8.13 minimum / API v0.8.14 recommended / Unity v0.5.8 TB6.2. Adds verified Player → NPC attacker identity, explicit compatibility fallback, NPC stat previews, optional attacker roster, and server-returned damage diagnostics. Desktop sends identity only; Sam.py remains authoritative for combat stats and eligibility.
 
+
+- `OSC_CONTRACT_v16.json` — Desktop v0.8.15 / API v0.8.16 recommended. Reliability contract: 180-second DM leases, reload-safe Admin DM sessions, stale-vs-closed state separation, pairing retention during outages, failed-sync retry, full authoritative resync after recovery, and reconnect backoff capped at 15 seconds.

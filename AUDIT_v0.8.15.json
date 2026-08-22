@@ -1,0 +1,28 @@
+{
+  "product": "Stories Of Yggdrasil OSC",
+  "version": "0.8.15",
+  "result": "PASS",
+  "tests": "58 passed",
+  "source_audit": [
+    "Stories Of Yggdrasil OSC Desktop source audit passed.",
+    "Desktop version: 0.8.15",
+    "OSC API minimum: 0.8.13",
+    "OSC API recommended: 0.8.16",
+    "Unity Tool: 0.5.8-TB6.2",
+    "Persistent UI state, connection-recovery safeguards, retained sync retries, capped outage backoff, and authoritative state refresh are present."
+  ],
+  "changes": {
+    "pairing_persists_through_transport_outage": true,
+    "failed_sync_payload_retried": true,
+    "full_state_refresh_after_reconnect": true,
+    "maximum_transport_backoff_seconds": 15,
+    "default_transport_backoff_seconds": 10,
+    "connection_states": [
+      "connected",
+      "reconnecting",
+      "paired",
+      "off"
+    ],
+    "unity_changes_required": false
+  }
+}

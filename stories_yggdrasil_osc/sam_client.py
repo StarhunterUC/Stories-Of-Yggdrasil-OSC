@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import queue
+import socket
 import threading
 import time
 import urllib.error
@@ -49,6 +50,8 @@ class SamClient:
 
         self._latest_sync_payload: dict[str, Any] | None = None
         self._sync_marker_queued = False
+        self._sync_retry_at = 0.0
+        self._last_success_monotonic = 0.0
 
     def reconfigure(self, config: dict[str, Any]) -> None:
         with self._lock:
@@ -61,6 +64,7 @@ class SamClient:
                 self._last_combat_enabled = False
                 self._consecutive_poll_failures = 0
                 self._last_poll_error = ""
+                self._sync_retry_at = 0.0
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -91,10 +95,13 @@ class SamClient:
 
     def sync(self, payload: dict[str, Any]) -> None:
         # OSC bursts may schedule several state pushes before the previous HTTP
-        # request finishes. Keep only the newest complete payload.
+        # request finishes. Keep only the newest complete payload. During an API
+        # outage retain that newest payload, but do not hot-loop POST /sync.
         with self._lock:
             self._latest_sync_payload = dict(payload)
             if self._sync_marker_queued:
+                return
+            if time.monotonic() < self._sync_retry_at:
                 return
             self._sync_marker_queued = True
         self._commands.put(("sync_latest", {}))
@@ -119,6 +126,32 @@ class SamClient:
             self._latest_sync_payload = None
             self._sync_marker_queued = False
         return dict(payload) if isinstance(payload, dict) else None
+
+    def _sync_retry_delay(self) -> float:
+        failures = max(0, int(self._consecutive_poll_failures))
+        return min(10.0, max(2.0, 2.0 ** min(failures + 1, 3)))
+
+    def _restore_failed_sync(self, payload: dict[str, Any]) -> None:
+        with self._lock:
+            # A newer local payload wins. If there is no newer one, retain the
+            # failed payload so the bridge cannot silently become unsynchronized.
+            if self._latest_sync_payload is None:
+                self._latest_sync_payload = dict(payload)
+            self._sync_marker_queued = False
+            self._sync_retry_at = max(self._sync_retry_at, time.monotonic() + self._sync_retry_delay())
+
+    def _queue_sync_retry_if_due(self) -> None:
+        with self._lock:
+            if self._latest_sync_payload is None or self._sync_marker_queued:
+                return
+            if time.monotonic() < self._sync_retry_at:
+                return
+            self._sync_marker_queued = True
+        try:
+            self._commands.put_nowait(("sync_latest", {}))
+        except Exception:
+            with self._lock:
+                self._sync_marker_queued = False
 
     def _snapshot_config(self) -> dict[str, Any]:
         with self._lock:
@@ -173,6 +206,8 @@ class SamClient:
             raise RuntimeError(f"Sam.py HTTP {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"Could not reach Sam.py: {exc.reason}") from exc
+        except (TimeoutError, socket.timeout) as exc:
+            raise RuntimeError("Sam.py request timed out") from exc
 
     def _emit(
         self,
@@ -235,6 +270,10 @@ class SamClient:
                 source="pull",
             )
         elif command in {"sync", "sync_latest"}:
+            if command == "sync_latest" and time.monotonic() < self._sync_retry_at:
+                with self._lock:
+                    self._sync_marker_queued = False
+                return
             sync_payload = (
                 self._take_latest_sync_payload()
                 if command == "sync_latest"
@@ -242,12 +281,17 @@ class SamClient:
             )
             if not isinstance(sync_payload, dict):
                 return
-            result = self._request(
-                "POST",
-                "/sync",
-                payload=sync_payload,
-                use_auth=True,
-            )
+            try:
+                result = self._request(
+                    "POST",
+                    "/sync",
+                    payload=sync_payload,
+                    use_auth=True,
+                )
+            except Exception:
+                self._restore_failed_sync(sync_payload)
+                raise
+            self._sync_retry_at = 0.0
             self._remember_state_response(result)
             self._emit(
                 "state",
@@ -328,10 +372,13 @@ class SamClient:
             if self._last_combat_enabled or recently_changed
             else idle_seconds
         )
-        max_backoff = max(
+        configured_backoff = max(
             base,
-            float(config.get("max_backoff_seconds", 60.0) or 60.0),
+            float(config.get("max_backoff_seconds", 10.0) or 10.0),
         )
+        # Reliability authority: never disappear for a full minute after a
+        # temporary VPS/API failure. Even custom legacy configs are capped.
+        max_backoff = min(15.0, configured_backoff)
         if self._consecutive_poll_failures <= 0:
             return base
         return min(
@@ -340,7 +387,9 @@ class SamClient:
         )
 
     def _poll_path(self) -> str:
-        if self._last_revision < 0:
+        # After any outage request the complete authoritative state once instead
+        # of trusting a conditional revision response from before the gap.
+        if self._last_revision < 0 or self._consecutive_poll_failures > 0:
             return "/state"
         query = urllib.parse.urlencode(
             {"after_revision": int(self._last_revision)}
@@ -355,15 +404,27 @@ class SamClient:
         # per minute. This prevents one outage from flooding events.log.
         should_emit = (
             message != self._last_poll_error
-            or now - self._last_poll_error_emit_at >= 60.0
+            or now - self._last_poll_error_emit_at >= 20.0
         )
         self._last_poll_error = message
         if should_emit:
             self._last_poll_error_emit_at = now
-            self._emit("poll", False, message, {}, source="poll")
+            self._emit(
+                "poll",
+                False,
+                message,
+                {
+                    "connection_state": "reconnecting",
+                    "consecutive_failures": self._consecutive_poll_failures,
+                    "paired_preserved": True,
+                    "next_retry_seconds": round(self._poll_interval(self._snapshot_config()), 2),
+                },
+                source="poll",
+            )
 
     def _worker(self) -> None:
         while not self._stop.is_set():
+            self._queue_sync_retry_if_due()
             command = None
             payload: dict[str, Any] = {}
             try:
@@ -397,13 +458,24 @@ class SamClient:
                 continue
 
             try:
+                recovering = self._consecutive_poll_failures > 0
                 result = self._request(
                     "GET",
                     self._poll_path(),
                     use_auth=True,
                 )
+                prior_failures = self._consecutive_poll_failures
                 self._consecutive_poll_failures = 0
                 self._last_poll_error = ""
+                self._last_success_monotonic = time.monotonic()
+                if recovering:
+                    self._emit(
+                        "connection",
+                        True,
+                        "Sam.py connection recovered; authoritative state refreshed.",
+                        {"connection_state": "connected", "recovered_after_failures": prior_failures},
+                        source="poll",
+                    )
                 changed = bool(result.get("changed", True))
                 if changed and isinstance(result.get("state"), dict):
                     self._remember_state_response(result)

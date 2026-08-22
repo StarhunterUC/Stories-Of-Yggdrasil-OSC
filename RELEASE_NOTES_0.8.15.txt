@@ -1,0 +1,12 @@
+Stories Of Yggdrasil OSC Desktop 0.8.15 — Connection Reliability Repair
+
+Designed for Sam.py OSC API 0.8.16.
+
+- Pairing tokens remain intact during temporary network/API failures.
+- Failed local /sync payloads are retained and retried; a temporary outage can no longer silently drop the newest complete OSC state.
+- Poll recovery is capped at 15 seconds (10-second default) instead of backing off for up to 60 seconds.
+- The first poll after an outage requests a full authoritative /state snapshot.
+- Dashboard distinguishes CONNECTED, RECONNECTING, PAIRED, and OFF.
+- During an outage, DM Gate shows STALE with the last authoritative OPEN/CLOSED state rather than claiming the gate changed.
+- Existing settings using the old 60-second maximum backoff migrate to 10 seconds.
+- No Unity Tool/contact changes are required.
