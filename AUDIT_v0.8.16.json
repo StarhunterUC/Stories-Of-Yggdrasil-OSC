@@ -1,0 +1,27 @@
+{
+  "product": "Stories Of Yggdrasil OSC",
+  "version": "0.8.16",
+  "result": "PASS",
+  "tests": "63 passed",
+  "source_audit": [
+    "Stories Of Yggdrasil OSC Desktop source audit passed.",
+    "Desktop version: 0.8.16",
+    "OSC API minimum: 0.8.13",
+    "OSC API recommended: 0.8.16",
+    "Unity Tool: 0.5.8-TB6.2",
+    "Persistent UI state, revision-epoch rebasing, heartbeat freshness, retained sync retries, maintenance-redirect detection, and authoritative state refresh are present."
+  ],
+  "changes": {
+    "revision_epoch_rebase_after_sam_restart": true,
+    "automatic_full_state_refresh_on_revision_rollback": true,
+    "healthy_poll_heartbeat": true,
+    "defer_remote_poll_while_local_sync_pending": true,
+    "poll_does_not_clear_sync_inflight": true,
+    "maintenance_html_redirect_detected_as_transport_failure": true,
+    "pairing_persists_through_transport_outage": true,
+    "failed_sync_payload_retried": true,
+    "maximum_transport_backoff_seconds": 15,
+    "default_transport_backoff_seconds": 10,
+    "unity_changes_required": false
+  }
+}

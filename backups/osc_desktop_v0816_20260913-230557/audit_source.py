@@ -8,7 +8,7 @@ from stories_yggdrasil_osc import __version__
 ROOT = Path(__file__).resolve().parent
 metadata = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
 
-expected = "0.8.16"
+expected = "0.8.15"
 if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
 if str(metadata.get("version")) != expected:
@@ -43,29 +43,21 @@ required_markers = {
     ],
     "contracts/OSC_CONTRACT_v15.json": ["verified_attacker_identity"],
     "contracts/OSC_CONTRACT_v16.json": ["pairing_persists_through_transport_outage", "full_state_refresh_after_reconnect"],
-    "contracts/OSC_CONTRACT_v17.json": ["revision_epoch_rebase_after_sam_restart", "maintenance_html_redirect_detected_as_transport_failure"],
     "stories_yggdrasil_osc/sam_client.py": [
         '"connection_state": "reconnecting"',
         "max_backoff = min(15.0, configured_backoff)",
         "def _poll_path(self)",
-        "def _revision_epoch_rolled_back(self",
-        "def _emit_poll_heartbeat(self",
-        "redirected outside its API endpoint",
-    ],
-    "stories_yggdrasil_osc/app.py": [
-        "sam_pending_remote_state",
-        "source == \"poll\"",
     ],
 }
 for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
     for marker in markers:
         if marker not in text:
-            raise SystemExit(f"Missing v0.8.16 marker {marker!r} in {relative}")
+            raise SystemExit(f"Missing v0.8.15 marker {marker!r} in {relative}")
 
 print("Stories Of Yggdrasil OSC Desktop source audit passed.")
 print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print("Persistent UI state, revision-epoch rebasing, heartbeat freshness, retained sync retries, maintenance-redirect detection, and authoritative state refresh are present.")
+print("Persistent UI state, connection-recovery safeguards, retained sync retries, capped outage backoff, and authoritative state refresh are present.")

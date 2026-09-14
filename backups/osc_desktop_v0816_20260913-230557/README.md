@@ -1,11 +1,6 @@
-# Stories Of Yggdrasil OSC v0.8.16
+# Stories Of Yggdrasil OSC v0.8.15
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
-
-
-## v0.8.16
-
-Desktop v0.8.16 repairs live Sam.py synchronization. A Sam.py service restart can reset the server's in-memory revision epoch; v0.8.15 could keep its older larger revision and then receive `changed:false` forever, making Admin/Sam.py edits appear only after **Reconnect All**. v0.8.16 detects revision rollback, performs a full authoritative refresh automatically, rebases the cursor, keeps healthy unchanged polls visible to the sync indicator, and treats maintenance-page redirects as temporary transport outages. OSC API v0.8.13 remains the minimum; v0.8.16 or newer is recommended.
 
 
 ## v0.8.15

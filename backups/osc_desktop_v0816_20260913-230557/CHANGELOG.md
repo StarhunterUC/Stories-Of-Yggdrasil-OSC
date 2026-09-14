@@ -1,17 +1,5 @@
 # Changelog
 
-## v0.8.16 — Live Sam.py Synchronization Repair
-
-- Detects Sam.py revision-epoch rollback after service restarts and immediately fetches a full authoritative state.
-- Rebases the remembered revision to the new process epoch instead of pinning it with `max(old, new)`.
-- Emits quiet successful-poll heartbeats so Dashboard connection/sync freshness remains accurate even when gameplay state is unchanged.
-- Defers a complete polled state while a local OSC sync is pending instead of partially consuming a new revision and losing the update.
-- Stops poll events from clearing the local sync-in-flight marker.
-- Treats sync/pull/test outages as recoverable transport failures and keeps pairing intact.
-- Detects HTML maintenance redirects/non-JSON API responses as temporary outages.
-- Requires Nginx `/api/osc` to bypass the browser maintenance redirect.
-- No Unity Tool/contact changes are required.
-
 ## v0.8.15 — Connection Reliability Repair
 
 - Preserves pairing tokens during temporary network/API failures.

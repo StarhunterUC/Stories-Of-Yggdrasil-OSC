@@ -112,7 +112,6 @@ class StoriesOSCApp:
         self.sam_sync_due_at = 0.0
         self.sam_sync_inflight = False
         self.sam_local_dirty = False
-        self.sam_pending_remote_state: dict[str, Any] | None = None
         self.sam_client_seq = 0
         self.sam_client_session = uuid.uuid4().hex
         self.sam_last_event_name = "startup"
@@ -951,8 +950,7 @@ class StoriesOSCApp:
 
     def _handle_sam_event(self, event: SamEvent) -> None:
         if not event.ok:
-            if event.kind in {"sync", "sync_latest"}:
-                self.sam_sync_inflight = False
+            self.sam_sync_inflight = False
             self.sam_status_label.configure(text=event.message, foreground=THEME["red"])
             self._append_activity("SAM ERROR", event.message)
             return
@@ -1021,8 +1019,7 @@ class StoriesOSCApp:
             self.sam_client.recovery_options()
             return
         if event.kind == "state":
-            if event.source == "sync":
-                self.sam_sync_inflight = False
+            self.sam_sync_inflight = False
             if isinstance(event.data.get("link"), dict):
                 self.link_info = dict(event.data.get("link") or {})
             state = event.data.get("state")
@@ -1062,9 +1059,6 @@ class StoriesOSCApp:
                     self._restore_avatar_after_rejection(state, sync_result)
             if event.source == "sync":
                 self.sam_local_dirty = False
-                # A successful /sync response is authoritative after the local
-                # pending change, so any deferred poll snapshot is now obsolete.
-                self.sam_pending_remote_state = None
             if not rejected:
                 self.sam_status_label.configure(text="Connected to Sam.py.", foreground=THEME["green"])
 
@@ -1253,24 +1247,6 @@ class StoriesOSCApp:
         char = state.get("character")
         if not isinstance(char, dict):
             return
-        cfg = self.config.get("sam", {})
-        if (
-            source == "poll"
-            and not force
-            and (self.sam_local_dirty or self.sam_sync_inflight)
-        ):
-            # Do not partially consume a new authoritative revision while a
-            # local OSC change is waiting to be acknowledged. v0.8.15 updated
-            # remote_state/revision first and then skipped HP/combat application,
-            # which could permanently lose the only changed:true response. Keep
-            # the newest complete snapshot until the local sync resolves.
-            pending = self.sam_pending_remote_state
-            pending_revision = int(pending.get("revision", -1) or -1) if isinstance(pending, dict) else -1
-            revision = int(state.get("revision", 0) or 0)
-            if pending is None or revision >= pending_revision:
-                self.sam_pending_remote_state = dict(state)
-            return
-
         self.remote_state = dict(state)
         self.remote_character = dict(char)
         osc_state = state.get("osc") if isinstance(state.get("osc"), dict) else {}
@@ -1313,11 +1289,12 @@ class StoriesOSCApp:
         self.remote_mp = max(0, int(char.get("mp", 0) or 0))
         self.remote_max_mp = max(0, int(char.get("max_mp", self.remote_mp) or 0))
         revision = int(state.get("revision", 0) or 0)
-        self.sam_last_revision = revision
+        self.sam_last_revision = max(self.sam_last_revision, revision)
         gate = state.get("dm_gate") if isinstance(state.get("dm_gate"), dict) else {}
         self.sam_last_dm_gate_active = bool(gate.get("active", False))
 
-        if bool(cfg.get("pull_remote_changes", True)):
+        cfg = self.config.get("sam", {})
+        if bool(cfg.get("pull_remote_changes", True)) and not (source == "poll" and (self.sam_local_dirty or self.sam_sync_inflight) and not force):
             npc_active = str(state.get("profile_mode") or "player") == "npc"
             if not npc_active:
                 self.config["profile"]["name"] = name
@@ -1375,11 +1352,6 @@ class StoriesOSCApp:
             elif event_name == "hot_tick":
                 label = "HEALING"
             self._append_activity(label, str(row.get("message") or "Status updated."))
-
-        if isinstance(self.sam_pending_remote_state, dict):
-            pending_revision = int(self.sam_pending_remote_state.get("revision", -1) or -1)
-            if revision >= pending_revision:
-                self.sam_pending_remote_state = None
 
         self._refresh_ui()
 

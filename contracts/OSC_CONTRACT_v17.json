@@ -1,0 +1,37 @@
+{
+  "contract_version": 17,
+  "desktop_version": "0.8.16",
+  "api_minimum": "0.8.13",
+  "api_recommended": "0.8.16",
+  "unity_tool_version": "0.5.8-TB6.2",
+  "features": {
+    "revision_epoch_rebase_after_sam_restart": true,
+    "automatic_full_state_refresh_on_revision_rollback": true,
+    "healthy_poll_heartbeat": true,
+    "defer_remote_poll_while_local_sync_pending": true,
+    "poll_does_not_clear_sync_inflight": true,
+    "pairing_persists_through_transport_outage": true,
+    "failed_sync_payload_retried": true,
+    "maintenance_html_redirect_detected_as_transport_failure": true,
+    "maximum_transport_backoff_seconds": 15,
+    "default_transport_backoff_seconds": 10
+  },
+  "connection_states": [
+    "connected",
+    "reconnecting",
+    "paired",
+    "off"
+  ],
+  "server_authority": {
+    "pair_token": "persists unless explicitly unlinked/revoked",
+    "dm_gate": "authoritative Sam.py DM lease state",
+    "character_state": "authoritative Sam.py linked-character state",
+    "state_revision": "monotonic only inside one Sam.py process epoch; Desktop rebases after restart"
+  },
+  "nginx": {
+    "osc_api_must_not_redirect_to_html_maintenance": true,
+    "recommended_location": "^~ /api/osc",
+    "proxy_intercept_errors": false
+  },
+  "unity_changes_required": false
+}

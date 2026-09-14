@@ -33,7 +33,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.16 live-sync reliability/QOL layer over the stable bridge."""
+    """v0.8.15 reliability/QOL layer over the stable bridge."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -742,13 +742,10 @@ class StoriesOSCAppV0814(StoriesOSCApp):
     # Sam event and refresh enhancements
     # ------------------------------------------------------------------
     def _handle_sam_event(self, event) -> None:
-        # Poll/sync/test outages are transport failures, not pairing revocations
-        # and not authoritative DM-gate closures. Preserve the last state and
-        # let the background client recover without requiring Reconnect All.
-        transport_failures = {"poll", "sync", "sync_latest", "pull", "test"}
-        if not event.ok and event.kind in transport_failures:
-            if event.kind in {"sync", "sync_latest"}:
-                self.sam_sync_inflight = False
+        # Poll outages are transport failures, not pairing revocations and not
+        # authoritative DM-gate closures. Preserve the last state and show a
+        # reconnecting condition instead of turning the dashboard red/"closed".
+        if not event.ok and event.kind == "poll":
             self.sam_connection_state = "reconnecting"
             self.sam_last_connection_error = str(event.message or "Temporary Sam.py connection loss")
             self.sam_status_label.configure(text=f"Reconnecting to Sam.py… {self.sam_last_connection_error}", foreground=THEME["gold2"])
@@ -758,7 +755,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         super()._handle_sam_event(event)
         if event.ok:
             self.last_sam_success_epoch = time.time()
-            if event.kind in {"connection", "heartbeat", "state", "paired", "test"}:
+            if event.kind in {"connection", "state", "paired", "test"}:
                 self.sam_connection_state = "connected"
                 self.sam_last_connection_error = ""
         if event.kind == "npc_catalog" and event.ok:

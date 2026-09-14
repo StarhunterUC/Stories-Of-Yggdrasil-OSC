@@ -1,0 +1,13 @@
+Stories Of Yggdrasil OSC Desktop 0.8.16 — Live Sam.py Synchronization Repair
+
+Designed for Sam.py OSC API 0.8.16+ and compatible with API 0.8.17.
+
+- Fixes the condition where Admin/Sam.py edits could remain stale until Reconnect All.
+- Automatically detects Sam.py revision-epoch resets after service restarts and performs a full state refresh.
+- Rebased full-state revisions can move downward after a restart instead of remaining pinned to the old process revision.
+- Healthy unchanged polls now refresh the Dashboard sync indicator.
+- Defers one complete remote snapshot while a local OSC sync is awaiting acknowledgement instead of partially consuming and losing the revision.
+- Poll replies no longer clear an unrelated local sync-in-flight flag.
+- Sync/test/pull transport failures automatically enter RECONNECTING and retry without requiring manual reconnect.
+- HTML maintenance redirects/non-JSON responses are recognized as temporary API outages.
+- No Unity Tool/contact changes are required.

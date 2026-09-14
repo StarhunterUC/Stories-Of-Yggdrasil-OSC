@@ -52,17 +52,14 @@ class SamClient:
         self._sync_marker_queued = False
         self._sync_retry_at = 0.0
         self._last_success_monotonic = 0.0
-        self._last_heartbeat_emit_at = 0.0
 
     def reconfigure(self, config: dict[str, Any]) -> None:
         with self._lock:
             old_token = str(self._config.get("token") or "")
             new_token = str(config.get("token") or "")
-            old_base = self._base_url(self._config)
-            new_base = self._base_url(config)
             self._config = dict(config)
             self._next_poll_at = 0.0
-            if old_token != new_token or old_base != new_base:
+            if old_token != new_token:
                 self._last_revision = -1
                 self._last_combat_enabled = False
                 self._consecutive_poll_failures = 0
@@ -187,38 +184,16 @@ class SamClient:
             if not token:
                 raise RuntimeError("This device is not paired with Sam.py.")
             headers["Authorization"] = f"Bearer {token}"
-        request_url = self._base_url(config) + path
         request = urllib.request.Request(
-            request_url,
+            self._base_url(config) + path,
             data=data,
             headers=headers,
             method=method,
         )
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
-                final_url = str(response.geturl() or request_url)
-                expected_url = urllib.parse.urlsplit(request_url)
-                resolved_url = urllib.parse.urlsplit(final_url)
-                base_path = urllib.parse.urlsplit(self._base_url(config)).path.rstrip("/")
-                if (
-                    resolved_url.scheme != expected_url.scheme
-                    or resolved_url.netloc != expected_url.netloc
-                    or not resolved_url.path.startswith(base_path + "/")
-                ):
-                    raise RuntimeError(
-                        "Sam.py API redirected outside its API endpoint "
-                        f"({resolved_url.netloc}{resolved_url.path}). "
-                        "The service may be restarting or under maintenance."
-                    )
                 raw = response.read().decode("utf-8", errors="replace")
-                try:
-                    result = json.loads(raw) if raw else {}
-                except json.JSONDecodeError as exc:
-                    content_type = str(response.headers.get("Content-Type") or "unknown")
-                    raise RuntimeError(
-                        "Sam.py returned a non-JSON response "
-                        f"({content_type}); the service may be under maintenance."
-                    ) from exc
+                result = json.loads(raw) if raw else {}
                 if not isinstance(result, dict):
                     raise RuntimeError("Sam.py returned an invalid response.")
                 return result
@@ -246,49 +221,15 @@ class SamClient:
         self.event_queue.put(SamEvent(kind, ok, message, data or {}, source))
 
     def _remember_state_response(self, result: dict[str, Any]) -> None:
-        """Remember a complete authoritative state response.
-
-        Revisions are monotonic only for one Sam.py process lifetime. A service
-        restart can legitimately restart the in-memory revision epoch at a lower
-        number. Complete state responses therefore replace, rather than max(),
-        the remembered revision. The worker is single-threaded, so responses
-        cannot arrive out of order here.
-        """
         state = result.get("state") if isinstance(result.get("state"), dict) else {}
         if not state:
             return
         revision = int(state.get("revision", result.get("revision", 0)) or 0)
         if revision != self._last_revision:
             self._last_state_changed_at = time.monotonic()
-        self._last_revision = revision
+        self._last_revision = max(self._last_revision, revision)
         self._last_combat_enabled = bool(
             state.get("combat_enabled", self._last_combat_enabled)
-        )
-
-    def _revision_epoch_rolled_back(self, server_revision: int) -> bool:
-        return self._last_revision >= 0 and int(server_revision) < self._last_revision
-
-    def _emit_poll_heartbeat(self, result: dict[str, Any]) -> None:
-        """Publish quiet successful-poll telemetry for dashboard freshness.
-
-        v0.8.15 emitted no UI event for unchanged successful polls. That made a
-        healthy link appear stale after ~20-30 seconds even while /state was
-        returning HTTP 200. Heartbeats are intentionally not activity-log rows.
-        """
-        now = time.monotonic()
-        if now - self._last_heartbeat_emit_at < 2.0:
-            return
-        self._last_heartbeat_emit_at = now
-        self._emit(
-            "heartbeat",
-            True,
-            "Sam.py poll healthy.",
-            {
-                "revision": int(result.get("revision", self._last_revision) or 0),
-                "api_version": str(result.get("api_version") or ""),
-                "connection_state": "connected",
-            },
-            source="poll",
         )
 
     def _do_command(self, command: str, payload: dict[str, Any]) -> None:
@@ -546,32 +487,10 @@ class SamClient:
                         source="poll",
                     )
                 elif result.get("revision") is not None:
-                    server_revision = int(result.get("revision", 0) or 0)
-                    if self._revision_epoch_rolled_back(server_revision):
-                        # Sam.py restarted between successful polls. A conditional
-                        # request using the old process' larger revision would
-                        # otherwise report changed:false forever. Immediately
-                        # fetch a full state snapshot and rebase to the new epoch.
-                        full_result = self._request(
-                            "GET",
-                            "/state",
-                            use_auth=True,
-                        )
-                        if isinstance(full_result.get("state"), dict):
-                            self._remember_state_response(full_result)
-                            self._emit(
-                                "state",
-                                True,
-                                "Sam.py restarted; authoritative state automatically refreshed.",
-                                full_result,
-                                source="poll",
-                            )
-                        else:
-                            self._last_revision = server_revision
-                            self._emit_poll_heartbeat(result)
-                    else:
-                        self._last_revision = server_revision
-                        self._emit_poll_heartbeat(result)
+                    self._last_revision = max(
+                        self._last_revision,
+                        int(result.get("revision", 0) or 0),
+                    )
             except Exception as exc:
                 self._handle_poll_failure(exc)
             finally:
