@@ -16,12 +16,6 @@ from PIL import Image, ImageTk
 
 from . import OSC_API_MINIMUM, OSC_API_RECOMMENDED, __version__
 from .combat import CombatState
-from .combat_authority import (
-    CombatCatalog,
-    CombatSourceHint,
-    build_incoming_contact_event,
-    new_event_id,
-)
 from .config import get_app_data_dir, get_log_path, load_config, load_runtime_state, save_config, save_runtime_state
 from .controller import BridgeController
 from .models import EventResult
@@ -114,12 +108,6 @@ class StoriesOSCApp:
         self.npc_last_hit_diagnostics: dict[str, Any] = {}
         self.enemy_mode_pending_value: bool | None = None
         self.enemy_mode_pending_until = 0.0
-        self.combat_catalog = CombatCatalog()
-        self.combat_source_hint = CombatSourceHint()
-        self.combat_player_rows_by_label: dict[str, dict[str, Any]] = {}
-        self.combat_pending_events: dict[str, dict[str, Any]] = {}
-        self.combat_last_result: dict[str, Any] = {}
-        self.combat_catalog_refreshed_at = 0.0
 
         self.sam_sync_due_at = 0.0
         self.sam_sync_inflight = False
@@ -353,7 +341,7 @@ class StoriesOSCApp:
         ttk.Label(profile_card, text="Effective Combat Profile", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 5))
         self.combat_stats_label = ttk.Label(profile_card, text="ATK —  DEF —  MAG —  RES —  SPD —  EVA —  VIT —", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.combat_stats_label.pack(anchor="w")
-        self.affinities_label = ttk.Label(profile_card, text="Affinities: waiting for Sam.py API 0.8.18", style="Muted.Card.TLabel", wraplength=500, justify="left")
+        self.affinities_label = ttk.Label(profile_card, text="Affinities: waiting for Sam.py API 0.8.16", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.affinities_label.pack(anchor="w", pady=(3, 0))
         self.magicks_profile_label = ttk.Label(profile_card, text="Magicks: waiting for authoritative profile", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.magicks_profile_label.pack(anchor="w", pady=(3, 0))
@@ -516,7 +504,7 @@ class StoriesOSCApp:
         self.npc_attacker_status_label.grid(row=9, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 6))
         self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_hit_diagnostics_label.grid(row=10, column=0, columnspan=4, sticky="w", padx=20, pady=(2, 6))
-        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. The static enemy roster is never edited, and verified attacker stats come from Sam.py API 0.8.18.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. The static enemy roster is never edited, and verified attacker stats come from Sam.py API 0.8.16.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_notice_label.grid(row=11, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 16))
         npc_card.columnconfigure(1, weight=1)
         npc_card.columnconfigure(2, weight=1)
@@ -539,7 +527,7 @@ class StoriesOSCApp:
         info = self._card(page)
         info.pack(fill=tk.BOTH, expand=True)
         ttk.Label(info, text="Audit Guidance", style="CardTitle.TLabel").pack(anchor="w", padx=20, pady=(18, 8))
-        ttk.Label(info, text="API 0.8.18 verifies the NPC attacker roster, combat identity catalog, authoritative player writes, combat-profile data, and effective affinities. Rejected actions should appear as structured messages instead of HTTP 500 errors. Review Recent Activity for the last local OSC event and this page for server compatibility.", style="Muted.Card.TLabel", wraplength=980, justify="left").pack(anchor="w", padx=20, pady=(0, 18))
+        ttk.Label(info, text="API 0.8.16 verifies the NPC attacker roster, authoritative player writes, combat-profile data, and effective affinities. Rejected actions should appear as structured messages instead of HTTP 500 errors. Review Recent Activity for the last local OSC event and this page for server compatibility.", style="Muted.Card.TLabel", wraplength=980, justify="left").pack(anchor="w", padx=20, pady=(0, 18))
         return page
 
     def _refresh_diagnostics_view(self) -> None:
@@ -580,8 +568,6 @@ class StoriesOSCApp:
         combat = self.config["combat"]
         bridge = self.config["avatar_bridge"]
         sam = self.config["sam"]
-        identity = self.config.setdefault("vrchat_identity", {})
-        combat_authority = self.config.setdefault("combat_authority", {})
         updates = self.config["updates"]
 
         network = self._card(body)
@@ -625,27 +611,6 @@ class StoriesOSCApp:
         ttk.Checkbutton(avatar, text="Drive avatar Health from Sam.py", variable=self.drive_health_var).grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=5)
         ttk.Checkbutton(avatar, text="Drive avatar status parameters from Sam.py", variable=self.drive_status_var).grid(row=3, column=2, columnspan=2, sticky="w", padx=20, pady=(5, 16))
         avatar.columnconfigure(1, weight=1)
-
-        identity_card = self._card(body)
-        identity_card.pack(fill=tk.X, pady=10)
-        ttk.Label(identity_card, text="VRChat Combat Identity", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=4, sticky="w", padx=20, pady=(18, 10))
-        ttk.Label(
-            identity_card,
-            text="Your own VRChat identity is synced to Sam.py when supplied. This improves Player identity mapping; remote attacker identity still requires a verified source hint or a selected live catalog source.",
-            style="Muted.Card.TLabel", wraplength=900, justify="left",
-        ).grid(row=1, column=0, columnspan=4, sticky="w", padx=20, pady=(0, 8))
-        self.vrchat_user_id_var = tk.StringVar(value=str(identity.get("user_id") or ""))
-        self.vrchat_display_name_var = tk.StringVar(value=str(identity.get("display_name") or ""))
-        self.unclassified_enemy_var = tk.BooleanVar(value=bool(combat_authority.get("unclassified_contacts_are_enemy", True)))
-        self._entry(identity_card, 2, "VRChat User ID", self.vrchat_user_id_var, col=0)
-        self._entry(identity_card, 2, "VRChat display name", self.vrchat_display_name_var, col=2)
-        ttk.Checkbutton(
-            identity_card,
-            text="Treat an unclassified damaging model as Enemy when no verified PvP source is present",
-            variable=self.unclassified_enemy_var,
-        ).grid(row=3, column=0, columnspan=4, sticky="w", padx=20, pady=(5, 16))
-        for col in (1, 3):
-            identity_card.columnconfigure(col, weight=1)
 
         update_card = self._card(body)
         update_card.pack(fill=tk.X, pady=10)
@@ -720,13 +685,6 @@ class StoriesOSCApp:
         except queue.Empty:
             pass
         self.controller.tick()
-        if (
-            bool(self.state.combat_enabled)
-            and str(self.config.get("sam", {}).get("token") or "").strip()
-            and time.monotonic() - self.combat_catalog_refreshed_at >= 20.0
-        ):
-            self.combat_catalog_refreshed_at = time.monotonic()
-            self.sam_client.combat_catalog()
         if self.sam_sync_due_at and time.monotonic() >= self.sam_sync_due_at and not self.sam_sync_inflight:
             self._push_sam_state()
         try:
@@ -738,50 +696,15 @@ class StoriesOSCApp:
     def _handle_osc_event(self, event: OSCEvent) -> None:
         if event.kind == "system":
             return
-        if event.address.startswith("/soy/combat/"):
-            self._handle_combat_identity_osc(event)
-            return
         if event.address == "/avatar/change":
             self.last_avatar_id = str(event.values[0]) if event.values else "—"
             self.output_cache.clear()
             self.controller.handle_osc(event.address, event.values, event.received_at_monotonic)
             self._append_activity("AVATAR", f"Loaded avatar {self._short_avatar(self.last_avatar_id)}.")
-            self._schedule_sam_sync("avatar_change", immediate=True, vrc_trigger=False)
             return
         if event.address.startswith("/avatar/parameters/") and self.last_avatar_id == "—":
             self.last_avatar_id = "Build & Test / local"
         self.controller.handle_osc(event.address, event.values, event.received_at_monotonic)
-
-    def _handle_combat_identity_osc(self, event: OSCEvent) -> None:
-        """Consume optional verified-source hints from a companion/world bridge.
-
-        VRChat avatar Contact parameters do not provide the remote user's
-        identity.  This hook lets a future trusted bridge supply that missing
-        context without teaching the Desktop to guess who caused a Contact.
-        Hints are deliberately short-lived and are consumed only by the next
-        incoming hit inside the configured TTL.
-        """
-        address = str(event.address or "").rstrip("/")
-        value = str(event.values[0] if event.values else "").strip()
-        hint = self.combat_source_hint
-        if address == "/soy/combat/source/clear":
-            hint.clear()
-            return
-        fields = {
-            "/soy/combat/source/kind": "kind",
-            "/soy/combat/source/avatar_id": "avatar_id",
-            "/soy/combat/source/vrchat_user_id": "vrchat_user_id",
-            "/soy/combat/source/enemy_name": "enemy_name",
-            "/soy/combat/action/name": "action_name",
-            "/soy/combat/action/kind": "action_kind",
-            "/soy/combat/action/element": "element",
-        }
-        field = fields.get(address)
-        if not field:
-            return
-        setattr(hint, field, value)
-        hint.received_at = float(event.received_at_monotonic or time.monotonic())
-        hint.source = "osc_identity_hint"
 
     def _send_parameter(self, name: str, value: Any) -> None:
         if not name:
@@ -813,9 +736,6 @@ class StoriesOSCApp:
         elif result.event == "blocked": category = "BLOCK"
         elif result.event == "external_detected": category = "AVATAR"
         self._append_activity(category, result.message)
-        if result.accepted and result.event == "hit_contact":
-            if self._submit_authoritative_contact(result):
-                return
         if result.accepted and result.event in {
             "damage", "dot_damage", "healing", "revive", "set_hp", "external_health_update",
             "status_applied", "status_expired", "statuses_cleared", "external_status_active",
@@ -851,104 +771,6 @@ class StoriesOSCApp:
                 if action_id > 0:
                     self._schedule_sam_sync(event_name, immediate=True, vrc_trigger=True)
                     break
-
-    def _combat_endpoint_ready(self) -> bool:
-        authority = self.config.get("combat_authority", {})
-        if isinstance(authority, dict) and not bool(authority.get("enabled", True)):
-            return False
-        capabilities = self.combat_catalog.capabilities
-        return bool(
-            capabilities.get("stat_aware_npc_vs_player")
-            or capabilities.get("stat_aware_pvp")
-        )
-
-    def _consume_hit_telemetry(self) -> None:
-        self.controller.telemetry["hit_event"] = ""
-        consume_alignment = getattr(self.controller, "consume_damage_alignment", None)
-        if callable(consume_alignment):
-            consume_alignment()
-        else:
-            self.controller.telemetry["damage_source_enemy"] = False
-
-    def _submit_authoritative_contact(self, result: EventResult) -> bool:
-        """Route an incoming Player-target Contact to API v0.8.18.
-
-        NPC Mode remains on the existing verified target-reported path because
-        the v0.8.18 Player→NPC endpoint is attacker-reported.  Replacing that
-        path here would make current NPC receivers unable to identify the real
-        attacker and would be a regression.
-        """
-        npc_cfg = self.config.get("npc_mode", {})
-        if bool(npc_cfg.get("enabled", False)):
-            return False
-        if not self._combat_endpoint_ready():
-            return False
-
-        authority = self.config.setdefault("combat_authority", {})
-        source_enemy = bool(result.metadata.get("source_enemy", False))
-        hint_kind = str(self.combat_source_hint.kind or "").strip().casefold()
-        if self.combat_source_hint.active(
-            ttl_seconds=float(authority.get("source_hint_ttl_seconds", 2.0) or 2.0)
-        ):
-            if hint_kind == "npc":
-                source_enemy = True
-            elif hint_kind == "player":
-                source_enemy = False
-
-        # Existing generic model Contacts can arrive without an explicit Enemy
-        # alignment pulse.  If no verified PvP identity is selected, honor the
-        # project rule that an unclassified damaging model defaults to Enemy.
-        if not source_enemy and bool(authority.get("unclassified_contacts_are_enemy", True)):
-            selected_player = bool(
-                str(authority.get("pvp_source_vrchat_user_id") or "").strip()
-                or str(authority.get("pvp_source_avatar_id") or "").strip()
-            )
-            fresh_player_hint = (
-                self.combat_source_hint.active(
-                    ttl_seconds=float(authority.get("source_hint_ttl_seconds", 2.0) or 2.0)
-                )
-                and hint_kind == "player"
-            )
-            if not selected_player and not fresh_player_hint:
-                source_enemy = True
-
-        event_id = new_event_id("contact")
-        payload, reason, metadata = build_incoming_contact_event(
-            event_id=event_id,
-            tier=str(result.metadata.get("hit_type") or "average"),
-            source_enemy=source_enemy,
-            catalog=self.combat_catalog,
-            authority_config=authority,
-            hint=self.combat_source_hint,
-        )
-        # Whether submitted or held, never allow the same Contact to fall
-        # through later as stale legacy /sync telemetry.
-        self._consume_hit_telemetry()
-        if payload is None:
-            self._append_activity("COMBAT HOLD", reason)
-            self.combat_last_result = {
-                "ok": False,
-                "registered": False,
-                "event_id": event_id,
-                "message": reason,
-                "metadata": metadata,
-            }
-            return True
-
-        self.combat_pending_events[event_id] = {
-            "submitted_at": time.monotonic(),
-            "tier": str(result.metadata.get("hit_type") or "average"),
-            "metadata": metadata,
-            "payload": payload,
-        }
-        # A hint describes one short-lived Contact context.  Consume it after
-        # the event is constructed so a later unrelated hit cannot inherit it.
-        self.combat_source_hint.clear()
-        self.sam_client.combat_event(payload)
-        source = payload.get("source") if isinstance(payload.get("source"), dict) else {}
-        label = str(source.get("enemy_name") or source.get("vrchat_user_id") or source.get("avatar_id") or source.get("kind") or "source")
-        self._append_activity("COMBAT", f"Submitted {payload['action']['tier']} Contact from {label} as {event_id}.")
-        return True
 
     # ------------------------------------------------------------------
     # Sam.py link and recovery
@@ -1009,9 +831,8 @@ class StoriesOSCApp:
         if not str(self.config.get("sam", {}).get("token") or "").strip():
             self.npc_notice_label.configure(text="Pair this device with Sam.py before loading the NPC roster.")
             return
-        self.npc_notice_label.configure(text="Loading Sam.py NPC, attacker, and combat-identity rosters…")
+        self.npc_notice_label.configure(text="Loading Sam.py NPC and attacker rosters…")
         self.sam_client.npc_catalog()
-        self.sam_client.combat_catalog()
 
     def use_selected_recovery(self) -> None:
         selected = self.recovery_tree.selection()
@@ -1061,13 +882,6 @@ class StoriesOSCApp:
             "source_mode": self.controller.active_input_mode,
             "client_drives_remote_statuses": bool(cfg.get("drive_avatar_statuses_from_sam", False)),
         }
-        identity_cfg = self.config.get("vrchat_identity", {}) if isinstance(self.config.get("vrchat_identity"), dict) else {}
-        vrchat_user_id = str(identity_cfg.get("user_id") or "").strip()
-        vrchat_display_name = str(identity_cfg.get("display_name") or "").strip()
-        if vrchat_user_id:
-            payload["vrchat_user_id"] = vrchat_user_id
-        if vrchat_display_name:
-            payload["vrchat_display_name"] = vrchat_display_name
         if bool(cfg.get("sync_hp", True)):
             payload["hp"] = int(snap["current_hp"])
             payload["hp_ratio"] = float(snap["hp_ratio"])
@@ -1137,37 +951,12 @@ class StoriesOSCApp:
 
     def _handle_sam_event(self, event: SamEvent) -> None:
         if not event.ok:
-            if event.kind == "combat_event":
-                event_id = str(event.data.get("event_id") or "").strip() if isinstance(event.data, dict) else ""
-                if event_id:
-                    self.combat_pending_events.pop(event_id, None)
-                self._append_activity("COMBAT ERROR", event.message)
-                self.sam_status_label.configure(text=f"Combat authority error: {event.message}", foreground=THEME["yellow"])
-                return
-            if event.kind == "combat_catalog":
-                self._append_activity("COMBAT", f"Combat catalog unavailable; legacy Contact sync remains active. {event.message}")
-                return
             if event.kind in {"sync", "sync_latest"}:
                 self.sam_sync_inflight = False
             self.sam_status_label.configure(text=event.message, foreground=THEME["red"])
             self._append_activity("SAM ERROR", event.message)
             return
         self._record_sam_api_version(event.data)
-        if event.kind == "combat_catalog":
-            self.combat_catalog.update(event.data)
-            self.combat_catalog_refreshed_at = time.monotonic()
-            self.combat_player_rows_by_label = self.combat_catalog.player_rows_by_label()
-            self._refresh_combat_source_selectors()
-            warnings = len(self.combat_catalog.warnings)
-            self._append_activity(
-                "COMBAT",
-                f"Loaded {len(self.combat_catalog.mapped_enemy_labels())} mapped NPC source(s) and {len(self.combat_player_rows_by_label)} verified Player identity source(s)"
-                + (f" with {warnings} catalog warning(s)." if warnings else "."),
-            )
-            return
-        if event.kind == "combat_event":
-            self._handle_combat_event_result(event.data)
-            return
         if event.kind == "npc_catalog":
             rows = event.data.get("enemies") if isinstance(event.data.get("enemies"), list) else []
             self.npc_roster = [row for row in rows if isinstance(row, dict)]
@@ -1207,7 +996,6 @@ class StoriesOSCApp:
             self._append_activity("SAM", "Device paired with Sam.py.")
             self.sam_client.recovery_options()
             self.sam_client.npc_catalog()
-            self.sam_client.combat_catalog()
             return
         if event.kind == "unlinked":
             self._clear_local_sam_link()
@@ -1279,93 +1067,6 @@ class StoriesOSCApp:
                 self.sam_pending_remote_state = None
             if not rejected:
                 self.sam_status_label.configure(text="Connected to Sam.py.", foreground=THEME["green"])
-
-    def _handle_combat_event_result(self, data: dict[str, Any]) -> None:
-        data = data if isinstance(data, dict) else {}
-        event_id = str(data.get("event_id") or "").strip()
-        pending = self.combat_pending_events.pop(event_id, {}) if event_id else {}
-        self.combat_last_result = dict(data)
-        if not bool(data.get("registered", False)):
-            message = str(data.get("message") or "OSC Contact was not registered by Sam.py.")
-            self._append_activity("COMBAT HOLD", message)
-            if hasattr(self, "sam_status_label"):
-                self.sam_status_label.configure(text=message, foreground=THEME["yellow"])
-            return
-
-        target = data.get("target") if isinstance(data.get("target"), dict) else {}
-        target_state = data.get("target_state") if isinstance(data.get("target_state"), dict) else {}
-        result = data.get("result") if isinstance(data.get("result"), dict) else {}
-        if str(target.get("kind") or "").casefold() == "player" and bool(target_state.get("authoritative_write", True)):
-            max_hp = int(target_state.get("max_hp", self.state.maximum_hp) or self.state.maximum_hp)
-            if max_hp > 0 and max_hp != self.state.maximum_hp:
-                self.state.reconfigure(
-                    maximum_hp=max_hp,
-                    damage_values=self.config["combat"]["damage"],
-                    invulnerability_seconds=self.config["combat"]["global_invulnerability_seconds"],
-                    critical_hp_percent=self.config["profile"].get("critical_hp_percent", 0.15),
-                    status_rules=self.config["statuses"],
-                    preserve_ratio=False,
-                )
-            if "after_hp" in target_state:
-                self.state.set_hp(int(target_state.get("after_hp") or 0))
-                self.controller.sync_outputs()
-
-        outcome = str(result.get("outcome") or "hit").casefold()
-        damage = int(result.get("damage", 0) or 0)
-        healing = int(result.get("healing", 0) or 0)
-        tier = str((data.get("action") or {}).get("tier") if isinstance(data.get("action"), dict) else "") or str(pending.get("tier") or "average")
-        if outcome in {"block", "parry"}:
-            self.controller.authoritative_hit_feedback(tier, blocked=True)
-        elif damage > 0:
-            self.controller.authoritative_hit_feedback(tier, blocked=False)
-        elif healing > 0:
-            self.controller.authoritative_healing_feedback()
-
-        source = data.get("source") if isinstance(data.get("source"), dict) else {}
-        source_label = str(source.get("name") or source.get("char_name") or source.get("enemy_name") or source.get("avatar_id") or source.get("kind") or "Source")
-        hp_text = ""
-        if target_state:
-            hp_text = f" Target HP {int(target_state.get('after_hp', 0) or 0):,}/{int(target_state.get('max_hp', self.state.maximum_hp) or self.state.maximum_hp):,}."
-        if damage > 0:
-            message = f"{source_label}: {outcome} for {damage:,} damage.{hp_text}"
-        elif healing > 0:
-            message = f"{source_label}: {outcome} for {healing:,} healing.{hp_text}"
-        else:
-            message = f"{source_label}: {outcome}; no HP damage registered.{hp_text}"
-        self._append_activity("COMBAT", message)
-        if hasattr(self, "sam_status_label"):
-            self.sam_status_label.configure(text="Connected to Sam.py — combat authority active.", foreground=THEME["green"])
-
-    def _refresh_combat_source_selectors(self) -> None:
-        authority = self.config.setdefault("combat_authority", {})
-        if hasattr(self, "combat_npc_source_combo"):
-            npc_names = self.combat_catalog.mapped_enemy_labels()
-            self.combat_npc_source_combo.configure(values=("", *npc_names))
-            selected = str(authority.get("incoming_npc_enemy_name") or "")
-            if selected and selected not in npc_names:
-                authority["incoming_npc_enemy_name"] = ""
-                self.combat_npc_source_var.set("")
-        if hasattr(self, "combat_pvp_source_combo"):
-            labels = sorted(self.combat_player_rows_by_label, key=str.casefold)
-            self.combat_pvp_source_combo.configure(values=("", *labels))
-            selected = str(authority.get("pvp_source_label") or "")
-            if selected and selected not in self.combat_player_rows_by_label:
-                authority["pvp_source_label"] = ""
-                authority["pvp_source_vrchat_user_id"] = ""
-                authority["pvp_source_avatar_id"] = ""
-                self.combat_pvp_source_var.set("")
-        self._refresh_combat_attribution_status()
-
-    def _refresh_combat_attribution_status(self) -> None:
-        if not hasattr(self, "combat_attribution_status_label"):
-            return
-        authority = self.config.get("combat_authority", {})
-        npc = str(authority.get("incoming_npc_enemy_name") or "").strip() or "not selected"
-        pvp = str(authority.get("pvp_source_label") or "").strip() or "not selected"
-        mode = "Enemy" if bool(authority.get("unclassified_contacts_are_enemy", True)) else "Unattributed"
-        self.combat_attribution_status_label.configure(
-            text=f"Incoming NPC source: {npc} • PvP source: {pvp} • Unclassified damaging models default to: {mode}."
-        )
 
     @staticmethod
     def _version_tuple(value: Any) -> tuple[int, int, int]:
@@ -1788,11 +1489,6 @@ class StoriesOSCApp:
             sam = self.config["sam"]
             sam["drive_avatar_health_from_sam"] = bool(self.drive_health_var.get())
             sam["drive_avatar_statuses_from_sam"] = bool(self.drive_status_var.get())
-            identity_cfg = self.config.setdefault("vrchat_identity", {})
-            identity_cfg["user_id"] = str(self.vrchat_user_id_var.get()).strip()
-            identity_cfg["display_name"] = str(self.vrchat_display_name_var.get()).strip()
-            authority_cfg = self.config.setdefault("combat_authority", {})
-            authority_cfg["unclassified_contacts_are_enemy"] = bool(self.unclassified_enemy_var.get())
             npc_cfg = self.config.setdefault("npc_mode", {})
             npc_enabled = bool(self.npc_mode_var.get())
             npc_name = str(self.npc_enemy_var.get()).strip()
@@ -1823,19 +1519,6 @@ class StoriesOSCApp:
             npc_cfg["attacker_user_id"] = attacker_user_id if attacker_mode == "verified" else ""
             npc_cfg["attacker_char_name"] = attacker_char_name if attacker_mode == "verified" else ""
             npc_cfg["attacker_player_label"] = player_text if attacker_mode == "verified" else ""
-
-            if hasattr(self, "combat_npc_source_var"):
-                selected_npc = str(self.combat_npc_source_var.get() or "").strip()
-                authority_cfg["incoming_npc_enemy_name"] = selected_npc
-                row = self.combat_catalog.enemy(selected_npc) if selected_npc else None
-                avatar_ids = [str(value).strip() for value in (row or {}).get("avatar_ids", []) if str(value).strip()]
-                authority_cfg["incoming_npc_avatar_id"] = avatar_ids[0] if avatar_ids else ""
-            if hasattr(self, "combat_pvp_source_var"):
-                selected_player = str(self.combat_pvp_source_var.get() or "").strip()
-                authority_cfg["pvp_source_label"] = selected_player
-                player_row = self.combat_player_rows_by_label.get(selected_player, {}) if selected_player else {}
-                authority_cfg["pvp_source_vrchat_user_id"] = str(player_row.get("vrchat_user_id") or "").strip()
-                authority_cfg["pvp_source_avatar_id"] = str(player_row.get("avatar_id") or "").strip()
             updates = self.config["updates"]
             updates["github_repo"] = str(self.github_repo_var.get()).strip()
             updates["check_on_start"] = bool(self.update_on_start_var.get())
@@ -1857,7 +1540,6 @@ class StoriesOSCApp:
                 self.controller.telemetry["enemy_mode"] = True
             self._schedule_sam_sync("npc_mode", immediate=True, vrc_trigger=False)
             self._refresh_npc_attacker_status()
-            self._refresh_combat_attribution_status()
             messagebox.showinfo("Settings", "Settings saved and applied.")
         except Exception as exc:
             messagebox.showerror("Settings", f"Could not apply settings.\n\n{exc}")

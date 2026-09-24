@@ -33,7 +33,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.18 stat-aware combat authority / live-sync QOL layer."""
+    """v0.8.16 live-sync reliability/QOL layer over the stable bridge."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -484,9 +484,6 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self.npc_attacker_mode_var = tk.StringVar(value=str(npc_cfg.get("attacker_mode") or "verified"))
         self.npc_attacker_player_var = tk.StringVar(value=str(npc_cfg.get("attacker_player_label") or npc_cfg.get("attacker_user_id") or ""))
         self.npc_attacker_char_var = tk.StringVar(value=str(npc_cfg.get("attacker_char_name") or ""))
-        authority_cfg = self.config.setdefault("combat_authority", {})
-        self.combat_npc_source_var = tk.StringVar(value=str(authority_cfg.get("incoming_npc_enemy_name") or ""))
-        self.combat_pvp_source_var = tk.StringVar(value=str(authority_cfg.get("pvp_source_label") or ""))
 
         ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var, command=self._refresh_npc_attacker_status).grid(row=1, column=0, columnspan=3, sticky="w", padx=20, pady=6)
         self.npc_favorite_button = ttk.Button(npc_card, text="☆ Favorite NPC", command=self.toggle_current_npc_favorite)
@@ -522,45 +519,12 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self.npc_attacker_status_label.grid(row=10, column=0, columnspan=5, sticky="w", padx=20, pady=(4, 6))
         self.npc_hit_diagnostics_label = ttk.Label(npc_card, text="Last hit diagnostics: no Player → NPC hit has been returned by Sam.py yet.", style="Muted.Card.TLabel", wraplength=950, justify="left")
         self.npc_hit_diagnostics_label.grid(row=11, column=0, columnspan=5, sticky="w", padx=20, pady=(2, 6))
-        ttk.Separator(npc_card, orient="horizontal").grid(row=12, column=0, columnspan=5, sticky="ew", padx=20, pady=6)
-        ttk.Label(npc_card, text="Incoming Contact Attribution", style="CardTitle.TLabel").grid(row=13, column=0, columnspan=5, sticky="w", padx=20, pady=(8, 8))
-        ttk.Label(npc_card, text="NPC → Player source", style="Card.TLabel").grid(row=14, column=0, sticky="w", padx=20, pady=6)
-        self.combat_npc_source_combo = ttk.Combobox(npc_card, textvariable=self.combat_npc_source_var, values=(), state="readonly")
-        self.combat_npc_source_combo.grid(row=14, column=1, columnspan=4, sticky="ew", padx=(0, 20), pady=6)
-        self.combat_npc_source_combo.bind("<<ComboboxSelected>>", self._combat_npc_source_selected)
-        ttk.Label(npc_card, text="Player → Player source", style="Card.TLabel").grid(row=15, column=0, sticky="w", padx=20, pady=6)
-        self.combat_pvp_source_combo = ttk.Combobox(npc_card, textvariable=self.combat_pvp_source_var, values=(), state="readonly")
-        self.combat_pvp_source_combo.grid(row=15, column=1, columnspan=4, sticky="ew", padx=(0, 20), pady=6)
-        self.combat_pvp_source_combo.bind("<<ComboboxSelected>>", self._combat_pvp_source_selected)
-        self.combat_attribution_status_label = ttk.Label(npc_card, text="Combat identity catalog has not loaded yet.", style="Muted.Card.TLabel", wraplength=950, justify="left")
-        self.combat_attribution_status_label.grid(row=16, column=0, columnspan=5, sticky="w", padx=20, pady=(4, 6))
-        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode preserves the existing verified target-reported Player → NPC path. API 0.8.18 combat authority is used for attributed incoming Player targets.", style="Muted.Card.TLabel", wraplength=950, justify="left")
-        self.npc_notice_label.grid(row=17, column=0, columnspan=5, sticky="w", padx=20, pady=(4, 16))
+        self.npc_notice_label = ttk.Label(npc_card, text="NPC Mode uses a device-local runtime copy. Verified attacker stats come from Sam.py API 0.8.16.", style="Muted.Card.TLabel", wraplength=950, justify="left")
+        self.npc_notice_label.grid(row=12, column=0, columnspan=5, sticky="w", padx=20, pady=(4, 16))
         for column in (1, 2, 3):
             npc_card.columnconfigure(column, weight=1)
         self._refresh_npc_attacker_status()
-        self._refresh_combat_source_selectors()
         return page
-
-    def _combat_npc_source_selected(self, _event=None) -> None:
-        authority = self.config.setdefault("combat_authority", {})
-        name = str(self.combat_npc_source_var.get() or "").strip()
-        authority["incoming_npc_enemy_name"] = name
-        row = self.combat_catalog.enemy(name) if name else None
-        avatar_ids = [str(value).strip() for value in (row or {}).get("avatar_ids", []) if str(value).strip()]
-        authority["incoming_npc_avatar_id"] = avatar_ids[0] if avatar_ids else ""
-        save_config(self.config)
-        self._refresh_combat_attribution_status()
-
-    def _combat_pvp_source_selected(self, _event=None) -> None:
-        authority = self.config.setdefault("combat_authority", {})
-        label = str(self.combat_pvp_source_var.get() or "").strip()
-        row = self.combat_player_rows_by_label.get(label, {}) if label else {}
-        authority["pvp_source_label"] = label
-        authority["pvp_source_vrchat_user_id"] = str(row.get("vrchat_user_id") or "").strip()
-        authority["pvp_source_avatar_id"] = str(row.get("avatar_id") or "").strip()
-        save_config(self.config)
-        self._refresh_combat_attribution_status()
 
     def _npc_filters_changed(self) -> None:
         self._ui()["npc_search"] = self.npc_search_var.get()

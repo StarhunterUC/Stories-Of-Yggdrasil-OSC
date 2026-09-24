@@ -1,13 +1,7 @@
-# Stories Of Yggdrasil OSC v0.8.18
+# Stories Of Yggdrasil OSC v0.8.16
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
 
-
-## v0.8.18
-
-Desktop v0.8.18 activates the stat-aware OSC combat authority introduced by Sam.py v1.9.24 / OSC API v0.8.18. Incoming NPC → Player and attributed Player → Player Contacts are submitted through `/api/osc/combat/event`; Sam.py chooses the authoritative combat profiles, applies the DM gate, and returns the final result. The Desktop never sends arbitrary Player damage power and holds unattributed PvP rather than guessing a remote identity.
-
-The NPC page now includes incoming NPC and PvP source selectors backed by `/api/osc/combat/catalog`. Optional local VRChat user/display identity is synced to Sam.py. A future trusted Unity/world companion can provide short-lived `/soy/combat/*` source hints; see `OSC_UNITY_COMBAT_BRIDGE_v0.8.18.md`. Existing verified NPC Mode Player → NPC handling is intentionally preserved until that direction can be reported from the attacking Player's side. OSC API v0.8.13 remains the legacy minimum; **v0.8.18 is recommended for this release's combat authority**.
 
 ## v0.8.16
 

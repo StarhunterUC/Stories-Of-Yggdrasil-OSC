@@ -1,11 +1,16 @@
-# GitHub Release Notes — v0.8.16
+# GitHub Release Notes — v0.8.18
 
-- Fixes stale Sam.py state that previously required **Reconnect All** after some edits/restarts.
-- Detects a lower server revision after Sam.py restarts and automatically performs a full authoritative refresh.
-- Rebases the revision cursor to the new process epoch instead of retaining an impossible older high-water mark.
-- Adds quiet successful-poll heartbeats so `SAM CONNECTED` / `SYNC` stay accurate while state is unchanged.
-- Defers complete remote poll snapshots while a local sync is awaiting acknowledgement, preventing one-shot `changed:true` updates from being partially consumed and lost.
-- Keeps sync/test/pull failures in automatic `RECONNECTING` recovery.
-- Detects Nginx maintenance-page redirects and non-JSON responses as temporary transport outages.
-- OSC API v0.8.13 remains the minimum; v0.8.16+ is recommended.
-- No Unity Tool/contact changes are required.
+## Combat Authority / Contact Attribution Bridge
+
+- Activates Sam.py v1.9.24 / OSC API v0.8.18 stat-aware combat events for incoming NPC → Player and attributed Player → Player Contacts.
+- Adds live mapped-NPC and verified-PvP source selectors.
+- Adds optional local VRChat identity sync and short-lived trusted `/soy/combat/*` source hints.
+- Uses idempotent event IDs and preserves the same ID across a safe network retry.
+- Restores one-second local Contact duplicate protection.
+- Never trusts client-authored final Player damage/power and never guesses an unattributed remote Player.
+- Keeps the existing verified NPC Mode Player → NPC route until outgoing attacker attribution can be proven from the attacking side.
+- Preserves all v0.8.16 live-sync/reconnect repairs.
+
+**Recommended server:** Sam.py v1.9.24 / OSC API v0.8.18.
+
+The uploaded Desktop repository does not include the Unity Contact-generator source; `OSC_UNITY_COMBAT_BRIDGE_v0.8.18.md` documents the companion signals for that follow-up.

@@ -8,13 +8,11 @@ from stories_yggdrasil_osc import __version__
 ROOT = Path(__file__).resolve().parent
 metadata = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
 
-expected = "0.8.18"
+expected = "0.8.16"
 if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
 if str(metadata.get("version")) != expected:
     raise SystemExit(f"version.json mismatch: {metadata.get('version')!r} != {expected!r}")
-if str(metadata.get("api_recommended")) != "0.8.18":
-    raise SystemExit("version.json must recommend OSC API 0.8.18")
 if not (ROOT / "Stories Of Yggdrasil OSC.spec").is_file():
     raise SystemExit("PyInstaller spec file is missing.")
 if not (ROOT / "assets" / "stories_osc_icon.ico").is_file():
@@ -26,9 +24,9 @@ required_markers = {
         "Reconnect All",
         "Quick Actions",
         "Create Support Bundle",
-        "Incoming Contact Attribution",
-        "combat_npc_source_combo",
-        "combat_pvp_source_combo",
+        "action_favorites",
+        "npc_favorites",
+        "StripOn.TLabel",
     ],
     "stories_yggdrasil_osc/qol.py": [
         "build_action_catalog",
@@ -38,29 +36,14 @@ required_markers = {
         "should_suppress_activity_repeat",
     ],
     "stories_yggdrasil_osc/config.py": [
-        '"version": 20',
+        '"version": 19',
         '"window_geometry"',
         '"action_favorites"',
         '"npc_favorites"',
-        '"combat_authority"',
-        '"vrchat_identity"',
-        '"unclassified_contacts_are_enemy": True',
     ],
     "contracts/OSC_CONTRACT_v15.json": ["verified_attacker_identity"],
     "contracts/OSC_CONTRACT_v16.json": ["pairing_persists_through_transport_outage", "full_state_refresh_after_reconnect"],
     "contracts/OSC_CONTRACT_v17.json": ["revision_epoch_rebase_after_sam_restart", "maintenance_html_redirect_detected_as_transport_failure"],
-    "contracts/OSC_CONTRACT_v18.json": [
-        '"combat_event_endpoint": true',
-        '"idempotent_contact_event_id": true',
-        '"guess_remote_player_identity": false',
-        '"player_to_npc_legacy_verified_route_preserved": true',
-    ],
-    "stories_yggdrasil_osc/combat_authority.py": [
-        "class CombatCatalog",
-        "class CombatSourceHint",
-        "def build_incoming_contact_event",
-        "def new_event_id",
-    ],
     "stories_yggdrasil_osc/sam_client.py": [
         '"connection_state": "reconnecting"',
         "max_backoff = min(15.0, configured_backoff)",
@@ -68,37 +51,21 @@ required_markers = {
         "def _revision_epoch_rolled_back(self",
         "def _emit_poll_heartbeat(self",
         "redirected outside its API endpoint",
-        '"/combat/catalog"',
-        '"/combat/event"',
     ],
     "stories_yggdrasil_osc/app.py": [
         "sam_pending_remote_state",
-        'source == "poll"',
-        "def _submit_authoritative_contact",
-        '"/soy/combat/source/vrchat_user_id"',
-        'payload["vrchat_user_id"]',
-        "self.sam_client.combat_event(payload)",
-    ],
-    "stories_yggdrasil_osc/controller.py": [
-        "_authoritative_contact_iframe_until",
-        '"reason": "contact_iframe"',
-    ],
-    "tests/test_combat_authority_v0818.py": [
-        "test_npc_to_player_uses_server_bound_avatar_and_never_sends_power",
-        "test_unattributed_player_contact_is_refused_instead_of_guessed",
-        "test_sam_client_combat_event_keeps_same_id_across_transient_retry",
-        "test_authoritative_contact_iframe_blocks_repeat_before_server_roundtrip",
+        "source == \"poll\"",
     ],
 }
 for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
     for marker in markers:
         if marker not in text:
-            raise SystemExit(f"Missing v0.8.18 marker {marker!r} in {relative}")
+            raise SystemExit(f"Missing v0.8.16 marker {marker!r} in {relative}")
 
 print("Stories Of Yggdrasil OSC Desktop source audit passed.")
 print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print("v0.8.16 synchronization recovery plus v0.8.18 combat catalog, idempotent combat events, safe attribution, and local Contact duplicate protection are present.")
+print("Persistent UI state, revision-epoch rebasing, heartbeat freshness, retained sync retries, maintenance-redirect detection, and authoritative state refresh are present.")

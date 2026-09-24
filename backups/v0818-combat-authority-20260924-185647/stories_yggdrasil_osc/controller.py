@@ -67,7 +67,6 @@ class BridgeController:
         self._pending_counter = 0
         self._pending_status_counter = 0
         self._damage_source_enemy_latched_until = 0.0
-        self._authoritative_contact_iframe_until = 0.0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
         self._spell_bus_pending_until = 0.0
@@ -209,7 +208,6 @@ class BridgeController:
         self._pending_hits.clear()
         self._pending_statuses.clear()
         self._damage_source_enemy_latched_until = 0.0
-        self._authoritative_contact_iframe_until = 0.0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
         self._spell_bus_pending_until = 0.0
@@ -585,24 +583,10 @@ class BridgeController:
                     reaction_code=self.REACTION_CODES["blocked"],
                     metadata={"hit_type": pending.hit_type, "source": pending.source},
                 )
-            elif self.authoritative_sam_actions and t < self._authoritative_contact_iframe_until:
-                result = EventResult(
-                    False,
-                    "hit_ignored",
-                    f"{pending.hit_type.title()} Contact ignored: local Contact i-frame is active.",
-                    hp_before=snap["current_hp"],
-                    hp_after=snap["current_hp"],
-                    maximum_hp=snap["maximum_hp"],
-                    metadata={"hit_type": pending.hit_type, "source": pending.source, "reason": "contact_iframe"},
-                )
             elif self.authoritative_sam_actions:
                 source_enemy = bool(pending.source_enemy or self._current_damage_source_enemy(t))
                 self.telemetry["hit_event"] = pending.hit_type
                 self.telemetry["damage_source_enemy"] = source_enemy
-                self._authoritative_contact_iframe_until = t + max(
-                    0.0,
-                    float(self.config.get("combat", {}).get("global_invulnerability_seconds", 1.0) or 1.0),
-                )
                 result = EventResult(
                     True,
                     "hit_contact",
@@ -700,9 +684,6 @@ class BridgeController:
             return
         code = self.REACTION_CODES.get(hit, self.REACTION_CODES.get("average", 2))
         self._send_reaction(code, damaged=True)
-
-    def authoritative_healing_feedback(self) -> None:
-        self._send_reaction(self.REACTION_CODES["healing"], healing=True)
 
     def sync_timed_outputs(self, now: float | None = None) -> None:
         snap = self.state.snapshot(now)

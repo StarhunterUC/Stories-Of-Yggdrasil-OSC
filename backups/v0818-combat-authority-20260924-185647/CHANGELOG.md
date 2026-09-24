@@ -1,17 +1,5 @@
 # Changelog
 
-## v0.8.18 — Sam.py Combat Authority / Contact Attribution Bridge
-
-- Integrates Sam.py v1.9.24 / OSC API v0.8.18 `combat/catalog` and `combat/event` endpoints for incoming Player-target Contacts.
-- Uses unique idempotent Contact event IDs and reuses the same ID on a safe transport retry.
-- Adds mapped NPC → Player and verified Player → Player source selectors from Sam.py's live combat identity catalog.
-- Syncs optional local VRChat user/display identity and current Avatar ID to improve server-side identity mapping.
-- Holds unattributed PvP instead of guessing a remote Player; unclassified damaging models default to Enemy only as a source kind and still require a mapped NPC identity.
-- Adds short-lived `/soy/combat/*` identity hints for a future trusted Unity/world companion bridge.
-- Restores one-second local Contact duplicate protection before server submission.
-- Preserves the existing verified NPC Mode Player → NPC path because API v0.8.18 expects that direction to be attacker-reported.
-- Keeps v0.8.16 reconnect, maintenance, revision-epoch, spells, Technicks, Items, statuses, and recovery behavior intact.
-
 ## v0.8.16 — Live Sam.py Synchronization Repair
 
 - Detects Sam.py revision-epoch rollback after service restarts and immediately fetches a full authoritative state.

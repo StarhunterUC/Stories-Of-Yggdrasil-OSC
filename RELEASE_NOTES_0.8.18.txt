@@ -1,0 +1,17 @@
+Stories Of Yggdrasil OSC Desktop v0.8.18
+=========================================
+
+Combat Authority / Contact Attribution Bridge
+
+- Integrates Sam.py v1.9.24 / OSC API v0.8.18 combat catalog and combat event endpoints.
+- Incoming NPC -> Player and attributed Player -> Player Contacts are resolved by Sam.py using authoritative combat stats.
+- Contact event retries reuse the original event_id so they cannot double-apply damage.
+- Adds NPC and PvP incoming-source selectors sourced from Sam.py's live combat identity catalog.
+- Syncs optional local VRChat user/display identity and current Avatar ID.
+- Unclassified damaging models default to Enemy when no verified PvP source is present, but the Desktop never guesses an enemy profile or remote Player identity.
+- Adds short-lived /soy/combat/* identity-hint inputs for a future trusted Unity/world companion bridge.
+- Restores one-second local Contact duplicate protection before authoritative submission.
+- Preserves the current verified NPC Mode Player -> NPC route until outgoing attacker identity can be proven from the attacking side.
+- Preserves v0.8.16 reconnect, revision rollback, and maintenance recovery behavior.
+
+Recommended server: Sam.py v1.9.24 / OSC API v0.8.18.

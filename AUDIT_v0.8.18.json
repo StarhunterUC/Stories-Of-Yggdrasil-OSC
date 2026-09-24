@@ -1,0 +1,32 @@
+{
+  "desktop_version": "0.8.18",
+  "date": "2026-09-24",
+  "source_baseline": {
+    "archive_label": "Stories-Of-Yggdrasil-OSC-Git-v0.8.11.zip",
+    "detected_version": "0.8.16"
+  },
+  "server_target": {
+    "sam": "1.9.24",
+    "osc_api": "0.8.18"
+  },
+  "verification": {
+    "compileall": "pass",
+    "pytest": {
+      "passed": 70,
+      "failed": 0
+    },
+    "source_audit": "pass"
+  },
+  "combat_authority": {
+    "npc_to_player": "new /combat/event route",
+    "player_to_player": "new defender-reported /combat/event route with verified source",
+    "player_to_npc": "existing verified NPC Mode route intentionally preserved",
+    "numeric_player_power_sent": false,
+    "unattributed_player_guessed": false,
+    "unmapped_npc_profile_guessed": false,
+    "event_retry_reuses_event_id": true,
+    "local_contact_iframe_seconds": 1.0
+  },
+  "unity_plugin_source_in_uploaded_archive": false,
+  "unity_followup": "OSC_UNITY_COMBAT_BRIDGE_v0.8.18.md"
+}

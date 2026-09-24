@@ -1,0 +1,48 @@
+{
+  "contract_version": 18,
+  "desktop_version": "0.8.18",
+  "api_minimum": "0.8.13",
+  "api_recommended": "0.8.18",
+  "sam_version": "1.9.24",
+  "unity_tool_version": "0.5.8-TB6.2",
+  "features": {
+    "combat_catalog": true,
+    "combat_event_endpoint": true,
+    "idempotent_contact_event_id": true,
+    "npc_to_player_server_authority": true,
+    "pvp_defender_reported_server_authority": true,
+    "player_to_npc_legacy_verified_route_preserved": true,
+    "vrchat_identity_sync": true,
+    "trusted_local_combat_source_hint": true,
+    "unattributed_player_contact_is_not_guessed": true,
+    "unclassified_damaging_model_defaults_enemy": true,
+    "local_contact_iframe_seconds": 1.0
+  },
+  "server_authority": {
+    "final_damage": "Sam.py",
+    "final_healing": "Sam.py",
+    "player_combat_stats": "fight_system.py via Sam.py",
+    "npc_combat_stats": "enemies.json via Sam.py",
+    "npc_avatar_binding": "validated by Sam.py",
+    "pvp_identity": "verified by Sam.py combat identity map",
+    "dm_gate": "Sam.py"
+  },
+  "desktop_rules": {
+    "send_numeric_player_power": false,
+    "guess_remote_player_identity": false,
+    "guess_unmapped_npc_profile": false,
+    "combat_retry_reuses_event_id": true
+  },
+  "optional_local_osc_hints": [
+    "/soy/combat/source/kind",
+    "/soy/combat/source/avatar_id",
+    "/soy/combat/source/vrchat_user_id",
+    "/soy/combat/source/enemy_name",
+    "/soy/combat/action/name",
+    "/soy/combat/action/kind",
+    "/soy/combat/action/element",
+    "/soy/combat/source/clear"
+  ],
+  "unity_changes_included": false,
+  "unity_followup_document": "OSC_UNITY_COMBAT_BRIDGE_v0.8.18.md"
+}

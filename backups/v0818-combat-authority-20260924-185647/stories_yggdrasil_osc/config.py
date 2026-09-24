@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 20,
+    "version": 19,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -90,20 +90,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "drive_avatar_health_from_sam": False,
         "drive_avatar_statuses_from_sam": False,
         "authoritative_vrc_damage": True,
-    },
-    "vrchat_identity": {
-        "user_id": "",
-        "display_name": "",
-    },
-    "combat_authority": {
-        "enabled": True,
-        "source_hint_ttl_seconds": 2.0,
-        "incoming_npc_enemy_name": "",
-        "incoming_npc_avatar_id": "",
-        "pvp_source_label": "",
-        "pvp_source_vrchat_user_id": "",
-        "pvp_source_avatar_id": "",
-        "unclassified_contacts_are_enemy": True,
     },
     "npc_mode": {
         "enabled": False,
@@ -289,7 +275,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 20
+        config["version"] = 19
         updates_cfg = config.setdefault("updates", {})
         if not str(updates_cfg.get("github_repo") or "").strip():
             updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
@@ -325,18 +311,6 @@ def load_config() -> dict[str, Any]:
         ui_cfg.setdefault("npc_favorites_only", False)
         ui_cfg.setdefault("npc_favorites", [])
         ui_cfg.setdefault("recent_npcs", [])
-        identity_cfg = config.setdefault("vrchat_identity", {})
-        identity_cfg.setdefault("user_id", "")
-        identity_cfg.setdefault("display_name", "")
-        combat_authority = config.setdefault("combat_authority", {})
-        combat_authority.setdefault("enabled", True)
-        combat_authority.setdefault("source_hint_ttl_seconds", 2.0)
-        combat_authority.setdefault("incoming_npc_enemy_name", "")
-        combat_authority.setdefault("incoming_npc_avatar_id", "")
-        combat_authority.setdefault("pvp_source_label", "")
-        combat_authority.setdefault("pvp_source_vrchat_user_id", "")
-        combat_authority.setdefault("pvp_source_avatar_id", "")
-        combat_authority.setdefault("unclassified_contacts_are_enemy", True)
         npc_cfg = config.setdefault("npc_mode", {})
         npc_cfg.setdefault("attacker_user_id", "")
         npc_cfg.setdefault("attacker_char_name", "")
