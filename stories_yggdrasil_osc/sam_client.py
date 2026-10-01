@@ -11,6 +11,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from .tls_runtime import get_ssl_context, tls_diagnostics
+
 
 @dataclass(frozen=True)
 class SamEvent:
@@ -205,7 +207,7 @@ class SamClient:
             method=method,
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.urlopen(request, timeout=timeout, context=get_ssl_context()) as response:
                 final_url = str(response.geturl() or request_url)
                 expected_url = urllib.parse.urlsplit(request_url)
                 resolved_url = urllib.parse.urlsplit(final_url)
@@ -240,6 +242,14 @@ class SamClient:
                 detail = raw or str(exc)
             raise RuntimeError(f"Sam.py HTTP {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
+            reason = str(exc.reason)
+            if "CERTIFICATE_VERIFY_FAILED" in reason or "certificate verify failed" in reason.lower():
+                tls = tls_diagnostics()
+                backend = str(tls.get("backend") or "unknown")
+                raise RuntimeError(
+                    f"Could not reach Sam.py: {reason} "
+                    f"[TLS backend: {backend}; verification: required]"
+                ) from exc
             raise RuntimeError(f"Could not reach Sam.py: {exc.reason}") from exc
         except (TimeoutError, socket.timeout) as exc:
             raise RuntimeError("Sam.py request timed out") from exc

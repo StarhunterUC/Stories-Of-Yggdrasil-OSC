@@ -8,7 +8,7 @@ from stories_yggdrasil_osc import __version__
 ROOT = Path(__file__).resolve().parent
 metadata = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
 
-expected = "0.8.18"
+expected = "0.8.19"
 if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
 if str(metadata.get("version")) != expected:
@@ -21,7 +21,13 @@ if not (ROOT / "assets" / "stories_osc_icon.ico").is_file():
     raise SystemExit("Application icon is missing.")
 
 required_markers = {
-    "main.py": ["app_v0814"],
+    "main.py": ["app_v0814", "configure_tls_runtime"],
+    "stories_yggdrasil_osc/tls_runtime.py": [
+        "Windows Trust Store (truststore)",
+        "ssl.CERT_REQUIRED",
+        "TLSv1_2",
+        "certifi.where()",
+    ],
     "stories_yggdrasil_osc/app_v0814.py": [
         "Reconnect All",
         "Quick Actions",
@@ -70,6 +76,7 @@ required_markers = {
         "redirected outside its API endpoint",
         '"/combat/catalog"',
         '"/combat/event"',
+        "context=get_ssl_context()",
     ],
     "stories_yggdrasil_osc/app.py": [
         "sam_pending_remote_state",
@@ -83,6 +90,27 @@ required_markers = {
         "_authoritative_contact_iframe_until",
         '"reason": "contact_iframe"',
     ],
+    "stories_yggdrasil_osc/update_manager.py": [
+        "context=get_ssl_context()",
+    ],
+    "requirements.txt": [
+        "truststore>=0.10,<1",
+        "certifi>=2025.1.31",
+    ],
+    "Stories Of Yggdrasil OSC.spec": [
+        "collect_submodules(\"truststore\")",
+    ],
+    "BUILD_AND_PACKAGE_v0.8.19.ps1": [
+        "Remove-Item -Recurse -Force build, dist, release",
+        "Stories_Of_Yggdrasil_OSC_Windows_v0.8.19.zip",
+    ],
+    ".github/workflows/release.yml": [
+        "Remove-Item -Recurse -Force build, dist",
+    ],
+    "tests/test_tls_runtime_v0819.py": [
+        "test_context_never_disables_certificate_verification",
+        "test_sam_client_passes_hardened_context_to_urllib",
+    ],
     "tests/test_combat_authority_v0818.py": [
         "test_npc_to_player_uses_server_bound_avatar_and_never_sends_power",
         "test_unattributed_player_contact_is_refused_instead_of_guessed",
@@ -94,11 +122,11 @@ for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
     for marker in markers:
         if marker not in text:
-            raise SystemExit(f"Missing v0.8.18 marker {marker!r} in {relative}")
+            raise SystemExit(f"Missing v0.8.19 marker {marker!r} in {relative}")
 
 print("Stories Of Yggdrasil OSC Desktop source audit passed.")
 print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print("v0.8.16 synchronization recovery plus v0.8.18 combat catalog, idempotent combat events, safe attribution, and local Contact duplicate protection are present.")
+print("v0.8.19 preserves v0.8.18 combat authority and adds verified Windows native TLS trust with a current CA fallback; certificate verification remains required.")

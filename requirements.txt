@@ -1,2 +1,4 @@
 python-osc>=1.8,<2
 Pillow>=10,<12
+truststore>=0.10,<1
+certifi>=2025.1.31

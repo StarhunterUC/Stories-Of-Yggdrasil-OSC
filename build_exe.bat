@@ -13,5 +13,8 @@ if not exist ".venv\Scripts\python.exe" (
 ".venv\Scripts\python.exe" -m pip install -r requirements-build.txt
 if errorlevel 1 exit /b %errorlevel%
 
+if exist "build" rmdir /s /q "build"
+if exist "dist" rmdir /s /q "dist"
+
 ".venv\Scripts\python.exe" -m PyInstaller --noconfirm --clean "Stories Of Yggdrasil OSC.spec"
 exit /b %errorlevel%

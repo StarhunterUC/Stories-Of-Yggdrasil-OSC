@@ -1,0 +1,12 @@
+Stories Of Yggdrasil OSC Desktop v0.8.19
+Windows TLS Trust Hardening
+
+- Uses the native Windows certificate trust engine for Sam.py and updater HTTPS.
+- Keeps certificate and hostname verification mandatory.
+- Requires TLS 1.2 or newer.
+- Adds a current verified certifi fallback if native trust is unavailable.
+- Reports the active TLS backend in Diagnostics/support bundles.
+- Cleans PyInstaller build/dist/release directories before packaging to prevent stale SSL runtime files.
+- Preserves Desktop v0.8.18 combat authority and OSC API v0.8.18 behavior.
+
+Sam.py requires no TLS/API change for this release.

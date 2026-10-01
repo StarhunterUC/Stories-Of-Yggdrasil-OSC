@@ -18,6 +18,7 @@ from .config import (
     save_config,
     save_runtime_state,
 )
+from .tls_runtime import tls_diagnostics
 from .qol import (
     action_key,
     append_grouped_activity,
@@ -33,7 +34,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.18 stat-aware combat authority / live-sync QOL layer."""
+    """v0.8.19 native-TLS hardening over the v0.8.18 combat-authority layer."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -660,6 +661,8 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             ("Combat profile loaded", payload["combat_profile"]),
             ("NPC attacker roster loaded", payload["attacker_roster"]),
             ("Single-instance guard", True),
+            ("TLS certificate verification enabled", payload["tls_verification"] == "required"),
+            ("Native Windows TLS trust active", payload["tls_native_windows_trust"] if os.name == "nt" else True),
             ("Settings folder writable", payload["settings_writable"]),
         ]
         self.diagnostics_checks_label.configure(text="\n".join(f"{'✓' if ok else '•'} {label}" for label, ok in checks))
@@ -675,6 +678,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             writable = True
         except Exception:
             writable = False
+        tls = tls_diagnostics()
         return {
             "desktop_version": __version__,
             "api_version": api,
@@ -691,6 +695,13 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             "attacker_roster": bool(self.npc_attacker_roster),
             "dm_gate_active": bool((self.remote_state.get("dm_gate") or {}).get("active", False)) if isinstance(self.remote_state.get("dm_gate"), dict) else False,
             "last_event": self.last_event,
+            "tls_backend": str(tls.get("backend") or "unknown"),
+            "tls_native_windows_trust": bool(tls.get("native_windows_trust", False)),
+            "tls_verification": str(tls.get("verification") or "required"),
+            "tls_minimum": str(tls.get("minimum_tls") or ""),
+            "openssl_version": str(tls.get("openssl_version") or ""),
+            "tls_fallback": bool(tls.get("fallback", False)),
+            "tls_runtime_error": str(tls.get("error") or ""),
             "settings_writable": writable,
         }
 

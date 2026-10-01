@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .tls_runtime import get_ssl_context
+
 
 @dataclass(frozen=True)
 class UpdateEvent:
@@ -97,7 +99,7 @@ class UpdateManager:
                     "User-Agent": "StoriesOfYggdrasilOSC",
                 },
             )
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=12, context=get_ssl_context()) as response:
                 release = json.loads(response.read().decode("utf-8", errors="replace"))
             self._progress(70, "Reading the latest release…", "check")
             latest = str(release.get("tag_name") or release.get("name") or "").lstrip("vV")
@@ -161,7 +163,7 @@ class UpdateManager:
             archive = temp_dir / asset_name
             self._progress(1, "Connecting to the release download…", "download")
             req = urllib.request.Request(asset_url, headers={"User-Agent": "StoriesOfYggdrasilOSC"})
-            with urllib.request.urlopen(req, timeout=90) as response, archive.open("wb") as handle:
+            with urllib.request.urlopen(req, timeout=90, context=get_ssl_context()) as response, archive.open("wb") as handle:
                 try:
                     total = int(response.headers.get("Content-Length") or 0)
                 except Exception:
@@ -191,7 +193,7 @@ class UpdateManager:
             checksum_url = str(release.get("checksum_url") or "")
             if checksum_url:
                 checksum_req = urllib.request.Request(checksum_url, headers={"User-Agent": "StoriesOfYggdrasilOSC"})
-                with urllib.request.urlopen(checksum_req, timeout=25) as response:
+                with urllib.request.urlopen(checksum_req, timeout=25, context=get_ssl_context()) as response:
                     checksum_text = response.read().decode("utf-8", errors="replace")
                 match = re.search(r"\b([a-fA-F0-9]{64})\b", checksum_text)
                 if not match:

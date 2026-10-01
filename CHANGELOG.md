@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.19 — Windows TLS Trust Hardening
+
+- Routes Sam.py and GitHub updater HTTPS through a shared verified TLS context.
+- Uses the native Windows certificate trust engine through `truststore` on Windows instead of depending on a frozen OpenSSL CA path.
+- Keeps hostname verification and `CERT_REQUIRED` enabled; there is no `verify=False` or unverified SSL bypass.
+- Falls back to a current bundled `certifi` CA set only if native trust initialization is unavailable.
+- Requires TLS 1.2 or newer for Desktop HTTPS connections.
+- Adds TLS backend, verification mode, OpenSSL version, fallback state, and native-Windows-trust state to Diagnostics and support bundles.
+- Forces clean PyInstaller `build`, `dist`, and release output for v0.8.19 so stale `_ssl`, OpenSSL, or CA files cannot survive a rebuild.
+- Keeps Sam.py / OSC API v0.8.18 combat-authority behavior unchanged.
+
 ## v0.8.18 — Sam.py Combat Authority / Contact Attribution Bridge
 
 - Integrates Sam.py v1.9.24 / OSC API v0.8.18 `combat/catalog` and `combat/event` endpoints for incoming Player-target Contacts.

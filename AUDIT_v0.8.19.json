@@ -1,0 +1,16 @@
+{
+  "desktop_version": "0.8.19",
+  "api_minimum": "0.8.13",
+  "api_recommended": "0.8.18",
+  "focus": "Windows native TLS trust hardening",
+  "security": {
+    "certificate_verification": "required",
+    "hostname_verification": true,
+    "minimum_tls": "TLSv1.2",
+    "unverified_bypass": false
+  },
+  "windows_backend": "truststore / native Windows trust",
+  "verified_fallback": "certifi",
+  "sam_py_changes_required": false,
+  "combat_authority_preserved": true
+}

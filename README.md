@@ -1,6 +1,13 @@
-# Stories Of Yggdrasil OSC v0.8.18
+# Stories Of Yggdrasil OSC v0.8.19
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
+
+
+## v0.8.19
+
+Desktop v0.8.19 hardens HTTPS without changing Sam.py combat authority. On Windows, Sam.py API and updater HTTPS requests use the native Windows certificate trust engine through `truststore`, matching the certificate-chain behavior used by the operating system instead of relying on a possibly stale frozen OpenSSL CA path. Certificate and hostname verification remain mandatory, TLS 1.2+ is required, and `certifi` is available only as a verified fallback. Diagnostics now reports the active TLS backend.
+
+OSC API v0.8.13 remains the minimum and v0.8.18 remains recommended; **Sam.py requires no TLS/API change for this Desktop patch.**
 
 
 ## v0.8.18

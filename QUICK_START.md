@@ -1,4 +1,4 @@
-# Quick Start — Desktop v0.8.18
+# Quick Start — Desktop v0.8.19
 
 1. Run `Start Stories OSC.bat`.
 2. Pair the Desktop with Sam.py using `/osc_link`.
@@ -44,7 +44,7 @@ Run:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\BUILD_AND_PACKAGE_v0.8.18.ps1
+.\BUILD_AND_PACKAGE_v0.8.19.ps1
 ```
 
 The script prepares the environment, runs tests and the source audit, builds the Windows executable, creates the release ZIP, and writes its SHA-256 checksum.
@@ -55,3 +55,8 @@ The script prepares the environment, runs tests and the source audit, builds the
 - Favorite common Actions to place them in Quick Actions.
 - Pause Recent Activity to inspect entries without stopping collection.
 - Use **Diagnostics → Create Support Bundle** before reporting an issue. The bundle redacts tokens and Discord IDs.
+
+
+## TLS diagnostics (v0.8.19)
+
+Open **Diagnostics → Copy Summary** and confirm a normal Windows release reports `tls_backend: Windows Trust Store (truststore)`, `tls_native_windows_trust: True`, and `tls_verification: required`. A fallback backend remains fully verified and is reported explicitly; do not disable certificate verification to work around a certificate error.

@@ -1,12 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_submodules
+
+truststore_hiddenimports = collect_submodules("truststore")
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[('assets', 'assets')],
-    hiddenimports=[],
+    hiddenimports=truststore_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
