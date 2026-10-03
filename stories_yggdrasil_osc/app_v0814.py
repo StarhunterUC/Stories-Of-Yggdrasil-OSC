@@ -19,6 +19,7 @@ from .config import (
     save_runtime_state,
 )
 from .tls_runtime import tls_diagnostics
+from .winhttp_transport import available as winhttp_available
 from .qol import (
     action_key,
     append_grouped_activity,
@@ -34,7 +35,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.19 native-TLS hardening over the v0.8.18 combat-authority layer."""
+    """v0.8.20 native WinHTTP/Schannel transport over the v0.8.18 combat-authority layer."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -662,7 +663,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             ("NPC attacker roster loaded", payload["attacker_roster"]),
             ("Single-instance guard", True),
             ("TLS certificate verification enabled", payload["tls_verification"] == "required"),
-            ("Native Windows TLS trust active", payload["tls_native_windows_trust"] if os.name == "nt" else True),
+            ("Sam.py uses Windows WinHTTP/Schannel", payload["sam_http_native"] if os.name == "nt" else True),
             ("Settings folder writable", payload["settings_writable"]),
         ]
         self.diagnostics_checks_label.configure(text="\n".join(f"{'✓' if ok else '•'} {label}" for label, ok in checks))
@@ -695,6 +696,8 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             "attacker_roster": bool(self.npc_attacker_roster),
             "dm_gate_active": bool((self.remote_state.get("dm_gate") or {}).get("active", False)) if isinstance(self.remote_state.get("dm_gate"), dict) else False,
             "last_event": self.last_event,
+            "sam_http_transport": "Windows WinHTTP/Schannel" if winhttp_available() else "Python urllib/OpenSSL",
+            "sam_http_native": bool(winhttp_available()),
             "tls_backend": str(tls.get("backend") or "unknown"),
             "tls_native_windows_trust": bool(tls.get("native_windows_trust", False)),
             "tls_verification": str(tls.get("verification") or "required"),

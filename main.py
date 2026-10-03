@@ -8,7 +8,7 @@ from typing import Any
 from stories_yggdrasil_osc.tls_runtime import configure_tls_runtime
 
 # Initialize verified HTTPS trust before importing Sam.py/update clients.
-# Windows builds use the native Windows trust engine through truststore.
+# Updater fallback TLS is initialized here; Sam.py uses WinHTTP/Schannel directly on Windows.
 configure_tls_runtime()
 
 from stories_yggdrasil_osc.app_v0814 import run

@@ -1,3 +1,15 @@
+# GitHub Release Notes — v0.8.20
+
+## Windows-native Sam.py HTTPS
+
+- Sam.py API calls now use Windows WinHTTP + Schannel directly on Windows.
+- Fixes the remaining class of machines where Windows/PowerShell accepts the live Let’s Encrypt chain but the frozen Python/OpenSSL client still reports an expired certificate.
+- TLS verification remains mandatory and authenticated Sam.py requests refuse redirects.
+- Diagnostics now reports the active Sam.py HTTP transport.
+- No Sam.py server/API deployment is required; OSC API v0.8.18 remains recommended.
+
+---
+
 # GitHub Release Notes — v0.8.19
 
 ## Windows TLS Trust Hardening

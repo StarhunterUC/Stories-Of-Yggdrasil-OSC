@@ -75,9 +75,23 @@ class _FakeRedirectResponse:
 
 def test_html_maintenance_redirect_is_treated_as_transport_failure():
     client = _client()
-    with patch("urllib.request.urlopen", return_value=_FakeRedirectResponse()):
-        with pytest.raises(RuntimeError, match="redirected outside its API endpoint"):
-            client._request("GET", "/health")
+
+    # v0.8.20 normally uses WinHTTP/Schannel on Windows.
+    # Force the legacy Python transport here so this historical
+    # test continues to validate urllib redirect protection.
+    with patch(
+        "stories_yggdrasil_osc.sam_client.winhttp_available",
+        return_value=False,
+    ):
+        with patch(
+            "stories_yggdrasil_osc.sam_client.urllib.request.urlopen",
+            return_value=_FakeRedirectResponse(),
+        ):
+            with pytest.raises(
+                RuntimeError,
+                match="redirected outside its API endpoint",
+            ):
+                client._request("GET", "/health")
 
 
 def test_polled_state_is_deferred_while_local_sync_is_unacknowledged():

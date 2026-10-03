@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.20 — Native Windows Sam.py HTTPS Transport
+
+- Routes Sam.py API HTTPS through Windows WinHTTP + Schannel on Windows instead of Python/OpenSSL.
+- Uses Windows system/per-user proxy discovery and Windows certificate-chain validation.
+- Requires HTTPS and TLS 1.2 for the native Sam.py path; certificate and hostname verification remain mandatory.
+- Disables automatic redirects for Sam.py API requests so bearer authorization cannot be forwarded to another endpoint.
+- Preserves the verified urllib/OpenSSL path for non-Windows source runs.
+- Adds `sam_http_transport` / `sam_http_native` diagnostics so support output proves which transport actually handled Sam.py.
+- Keeps Sam.py / OSC API v0.8.18 combat-authority behavior unchanged.
+
 ## v0.8.19 — Windows TLS Trust Hardening
 
 - Routes Sam.py and GitHub updater HTTPS through a shared verified TLS context.

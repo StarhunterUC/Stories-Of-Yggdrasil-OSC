@@ -12,6 +12,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from .tls_runtime import get_ssl_context, tls_diagnostics
+from .winhttp_transport import (
+    WinHttpRequestError,
+    available as winhttp_available,
+    request as winhttp_request,
+)
 
 
 @dataclass(frozen=True)
@@ -200,6 +205,43 @@ class SamClient:
                 raise RuntimeError("This device is not paired with Sam.py.")
             headers["Authorization"] = f"Bearer {token}"
         request_url = self._base_url(config) + path
+        if winhttp_available():
+            try:
+                native = winhttp_request(
+                    request_url,
+                    method=method,
+                    headers=headers,
+                    body=data,
+                    timeout=timeout,
+                )
+            except WinHttpRequestError as exc:
+                raise RuntimeError(
+                    f"Could not reach Sam.py: {exc} "
+                    "[TLS backend: Windows WinHTTP/Schannel; verification: required]"
+                ) from exc
+
+            raw = native.body.decode("utf-8", errors="replace")
+            if native.status >= 400 or 300 <= native.status < 400:
+                try:
+                    parsed_error = json.loads(raw) if raw else {}
+                    detail = parsed_error.get("detail") if isinstance(parsed_error, dict) else raw
+                except Exception:
+                    detail = raw
+                if 300 <= native.status < 400:
+                    detail = detail or "Redirect refused by the native Sam.py transport."
+                raise RuntimeError(f"Sam.py HTTP {native.status}: {detail or 'request failed'}")
+            try:
+                result = json.loads(raw) if raw else {}
+            except json.JSONDecodeError as exc:
+                content_type = str(native.headers.get("Content-Type") or "unknown")
+                raise RuntimeError(
+                    "Sam.py returned a non-JSON response "
+                    f"({content_type}); the service may be under maintenance."
+                ) from exc
+            if not isinstance(result, dict):
+                raise RuntimeError("Sam.py returned an invalid response.")
+            return result
+
         request = urllib.request.Request(
             request_url,
             data=data,

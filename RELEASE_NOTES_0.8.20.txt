@@ -1,0 +1,12 @@
+Stories Of Yggdrasil OSC Desktop v0.8.20
+
+Windows Sam.py HTTPS now uses WinHTTP + Schannel directly instead of Python/OpenSSL.
+This targets PCs where Windows/PowerShell validates the live Sam.py certificate but the frozen Desktop reports an expired certificate.
+
+Security is not weakened:
+- certificate verification remains required
+- hostname verification remains required
+- TLS 1.2 is required
+- authenticated Sam.py requests refuse redirects
+
+Sam.py / OSC API v0.8.18 behavior is unchanged.

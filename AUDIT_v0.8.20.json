@@ -1,0 +1,13 @@
+{
+  "desktop_version": "0.8.20",
+  "osc_api_minimum": "0.8.13",
+  "osc_api_recommended": "0.8.18",
+  "sam_server_change_required": false,
+  "sam_windows_transport": "WinHTTP/Schannel",
+  "certificate_verification": "required",
+  "hostname_verification": "required",
+  "minimum_tls": "TLSv1.2",
+  "automatic_redirects_for_sam": false,
+  "python_tls_fallback_non_windows": true,
+  "purpose": "Bypass Python/OpenSSL chain-building divergence when native Windows HTTPS validation succeeds"
+}

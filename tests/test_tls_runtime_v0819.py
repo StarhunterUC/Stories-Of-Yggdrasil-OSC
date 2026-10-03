@@ -10,7 +10,6 @@ from stories_yggdrasil_osc.sam_client import SamClient
 
 class TLSRuntimeV0819Tests(unittest.TestCase):
     def tearDown(self) -> None:
-        # Keep tests isolated from whichever backend exists on the test OS.
         tls_runtime._CONTEXT = None
         tls_runtime._STATUS = {
             "backend": "uninitialized",
@@ -33,21 +32,49 @@ class TLSRuntimeV0819Tests(unittest.TestCase):
         self.assertIn("backend", status)
         self.assertIn("openssl_version", status)
 
-    def test_sam_client_passes_hardened_context_to_urllib(self) -> None:
+    def test_sam_client_passes_hardened_context_to_urllib_fallback(self) -> None:
         queue_obj = MagicMock()
-        client = SamClient(queue_obj, {"base_url": "https://admin.storiesofyggdrasil.com/api/osc"})
+        client = SamClient(
+            queue_obj,
+            {
+                "base_url":
+                    "https://admin.storiesofyggdrasil.com/api/osc"
+            },
+        )
+
         fake_context = MagicMock(spec=ssl.SSLContext)
+
         response = MagicMock()
         response.__enter__.return_value = response
         response.__exit__.return_value = False
-        response.geturl.return_value = "https://admin.storiesofyggdrasil.com/api/osc/health"
+        response.geturl.return_value = (
+            "https://admin.storiesofyggdrasil.com/api/osc/health"
+        )
         response.read.return_value = b'{"ok": true}'
         response.headers = {"Content-Type": "application/json"}
-        with patch("stories_yggdrasil_osc.sam_client.get_ssl_context", return_value=fake_context), \
-             patch("stories_yggdrasil_osc.sam_client.urllib.request.urlopen", return_value=response) as urlopen:
-            result = client._request("GET", "/health")
+
+        # v0.8.20 normally uses WinHTTP/Schannel on Windows.
+        # Force WinHTTP unavailable here so this legacy test specifically
+        # validates the hardened urllib/OpenSSL fallback path.
+        with patch(
+            "stories_yggdrasil_osc.sam_client.winhttp_available",
+            return_value=False,
+        ):
+            with patch(
+                "stories_yggdrasil_osc.sam_client.get_ssl_context",
+                return_value=fake_context,
+            ):
+                with patch(
+                    "stories_yggdrasil_osc.sam_client.urllib.request.urlopen",
+                    return_value=response,
+                ) as urlopen:
+                    result = client._request("GET", "/health")
+
         self.assertTrue(result["ok"])
-        self.assertIs(urlopen.call_args.kwargs["context"], fake_context)
+        self.assertIs(
+            urlopen.call_args.kwargs["context"],
+            fake_context,
+        )
 
 
 if __name__ == "__main__":

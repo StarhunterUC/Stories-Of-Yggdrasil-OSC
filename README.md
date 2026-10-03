@@ -1,6 +1,13 @@
-# Stories Of Yggdrasil OSC v0.8.19
+# Stories Of Yggdrasil OSC v0.8.20
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
+
+
+## v0.8.20
+
+Desktop v0.8.20 moves **Sam.py API traffic on Windows** off Python/OpenSSL entirely and onto Windows WinHTTP + Schannel. This specifically targets machines where PowerShell/Windows can validate `https://admin.storiesofyggdrasil.com/api/osc` but the frozen Python runtime still reports `CERTIFICATE_VERIFY_FAILED: certificate has expired`. Certificate and hostname validation remain mandatory, redirects are refused for authenticated Sam.py requests, and TLS 1.2 is required for Windows 10 compatibility.
+
+The existing verified Python TLS path remains available for non-Windows source runs and the updater. OSC API v0.8.18 remains recommended and **Sam.py requires no server/API change** for this Desktop transport repair.
 
 
 ## v0.8.19
