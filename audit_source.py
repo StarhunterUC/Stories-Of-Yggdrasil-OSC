@@ -106,9 +106,6 @@ required_markers = {
         "Remove-Item -Recurse -Force build, dist, release",
         "Stories_Of_Yggdrasil_OSC_Windows_v0.8.20.zip",
     ],
-    ".github/workflows/release.yml": [
-        "Remove-Item -Recurse -Force build, dist",
-    ],
     "tests/test_tls_runtime_v0819.py": [
         "test_context_never_disables_certificate_verification",
         "test_sam_client_passes_hardened_context_to_urllib",
@@ -136,6 +133,16 @@ for relative, markers in required_markers.items():
     for marker in markers:
         if marker not in text:
             raise SystemExit(f"Missing v0.8.20 marker {marker!r} in {relative}")
+
+workflow_text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+legacy_release_flow = "Remove-Item -Recurse -Force build, dist" in workflow_text
+managed_release_flow = (
+    "python tools/build_release.py --repo-root ." in workflow_text
+    and (ROOT / "tools" / "build_release.py").is_file()
+    and (ROOT / "tools" / "verify_repo.py").is_file()
+)
+if not (legacy_release_flow or managed_release_flow):
+    raise SystemExit("Missing supported Desktop release-build flow in .github/workflows/release.yml")
 
 print("Stories Of Yggdrasil OSC Desktop source audit passed.")
 print(f"Desktop version: {expected}")

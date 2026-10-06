@@ -1,6 +1,13 @@
 name: Build Windows Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish or update the GitHub Release after building
+        required: true
+        type: boolean
+        default: false
   push:
     tags:
       - "v*"
@@ -13,13 +20,17 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
 
       - name: Install build requirements
         shell: pwsh
@@ -27,68 +38,66 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
 
-      - name: Validate release metadata
+      - name: Verify repository
+        shell: pwsh
+        run: python tools/verify_repo.py --repo-root .
+
+      - name: Run tests
+        shell: pwsh
+        run: python -m pytest -q
+
+      - name: Run source audit
+        shell: pwsh
+        run: python audit_source.py
+
+      - name: Read release metadata
+        id: meta
         shell: pwsh
         run: |
           $metadata = Get-Content "version.json" -Raw | ConvertFrom-Json
           $version = [string]$metadata.version
-          $expectedTag = "v$version"
-          $actualTag = "${{ github.ref_name }}"
+          $tag = if ($metadata.tag) { [string]$metadata.tag } else { "v$version" }
+          $notes = if ($metadata.release_notes) { [string]$metadata.release_notes } else { "PATCH_NOTES_v$version.md" }
+          $product = [string]$metadata.product
+          $title = "$product v$version"
+          $channel = [string]$metadata.channel
+          $prerelease = if ($null -ne $metadata.prerelease) { [bool]$metadata.prerelease } else { $channel -ne "stable" }
 
-          if ($actualTag -ne $expectedTag) {
-            throw "Release tag '$actualTag' does not match version.json '$expectedTag'."
+          if (-not (Test-Path $notes -PathType Leaf)) {
+            throw "Required release notes file not found: $notes"
           }
 
-          $patchNotes = "PATCH_NOTES_v$version.md"
-          if (-not (Test-Path $patchNotes -PathType Leaf)) {
-            throw "Required patch notes file not found: $patchNotes"
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -ne $tag) {
+            throw "Pushed tag '${{ github.ref_name }}' does not match version metadata '$tag'."
           }
 
-          "SOY_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "SOY_PATCH_NOTES=$patchNotes" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "title=$title" >> $env:GITHUB_OUTPUT
+          "notes=$notes" >> $env:GITHUB_OUTPUT
+          "release_dir=release/$tag" >> $env:GITHUB_OUTPUT
+          "prerelease=$($prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
-      - name: Run tests
+      - name: Build release assets
         shell: pwsh
-        run: |
-          python -m pytest -q
+        run: python tools/build_release.py --repo-root .
 
-      - name: Run source audit
-        shell: pwsh
-        run: |
-          python audit_source.py
+      - name: Upload Windows release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.tag }}-windows
+          path: ${{ steps.meta.outputs.release_dir }}/*
+          if-no-files-found: error
+          retention-days: 30
 
-      - name: Build executable
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
-          pyinstaller --noconfirm --clean "Stories Of Yggdrasil OSC.spec"
-
-      - name: Assemble release archive
-        shell: pwsh
-        run: |
-          $releaseBase = "release"
-          $releaseRoot = Join-Path $releaseBase "Stories Of Yggdrasil OSC"
-
-          Remove-Item -Recurse -Force $releaseBase -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
-
-          Copy-Item "dist/Stories Of Yggdrasil OSC/*" $releaseRoot -Recurse -Force
-          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, $env:SOY_PATCH_NOTES, version.json $releaseRoot -Force
-
-          if (Test-Path "contracts") {
-            Copy-Item "contracts" (Join-Path $releaseRoot "contracts") -Recurse -Force
-          }
-
-          $zip = "Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip"
-          Compress-Archive -Path $releaseRoot -DestinationPath $zip -Force
-
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $zip" | Set-Content "$zip.sha256" -Encoding ascii
-
-      - name: Publish GitHub release
+      - name: Publish GitHub Release
+        if: ${{ github.ref_type == 'tag' || inputs.publish_release == true }}
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.meta.outputs.title }}
+          body_path: ${{ steps.meta.outputs.notes }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          fail_on_unmatched_files: true
           files: |
-            Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip
-            Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip.sha256
+            ${{ steps.meta.outputs.release_dir }}/*
