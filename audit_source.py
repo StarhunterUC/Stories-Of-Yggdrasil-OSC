@@ -15,8 +15,8 @@ if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
 if str(metadata.get("channel") or "") == "pre-build" and "prebuild" not in expected:
     raise SystemExit("Pre-build channel versions must include 'prebuild'.")
-if str(metadata.get("api_recommended")) != "0.8.18":
-    raise SystemExit("version.json must recommend OSC API 0.8.18")
+if str(metadata.get("api_recommended")) != "0.8.19":
+    raise SystemExit("Protocol 21 pre-build must recommend OSC API 0.8.19")
 if not (ROOT / "Stories Of Yggdrasil OSC.spec").is_file():
     raise SystemExit("PyInstaller spec file is missing.")
 if not (ROOT / "assets" / "stories_osc_icon.ico").is_file():
@@ -49,7 +49,7 @@ required_markers = {
         "should_suppress_activity_repeat",
     ],
     "stories_yggdrasil_osc/config.py": [
-        '"version": 20',
+        '"version": 21',
         '"external_damage_source": "SoY_ExternalDamageSource"',
         '"window_geometry"',
         '"action_favorites"',
@@ -85,11 +85,14 @@ required_markers = {
         "context=get_ssl_context()",
         "winhttp_request",
         "Windows WinHTTP/Schannel",
+        '"/helpful-item/self"',
+        '"/helpful-item/attempt"',
+        '"/helpful-item/receipt"',
     ],
     "stories_yggdrasil_osc/avatar_compatibility.py": [
         "MIN_UNITY_PROTOCOL = 20",
-        "MAX_UNITY_PROTOCOL = 20",
-        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.5"',
+        "MAX_UNITY_PROTOCOL = 21",
+        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB18"',
         "SoY_UnitySchemaValid",
         "SoY_UnityMarkerBeacon",
     ],
@@ -104,12 +107,33 @@ required_markers = {
         "external_damage_source",
         "avatar_compatibility",
         "combat_catalog_activity_signature",
+        "def _submit_helpful_item_touch",
+        "def _submit_helpful_item_receipt",
+        "is_physical_helpful_item",
     ],
     "stories_yggdrasil_osc/controller.py": [
         "_authoritative_contact_iframe_until",
         "_external_damage_source_latched_until",
         '"external_damage_source": False',
         '"reason": "contact_iframe"',
+        '"helpful_item_received_type"',
+        '"helpful_item_touch"',
+        '"helpful_item_received"',
+    ],
+    "stories_yggdrasil_osc/helpful_items.py": [
+        "HELPFUL_ITEM_ID_TO_NAME",
+        "ITEM_RESULT_NO_ITEM",
+        "ITEM_RESULT_EXPIRED",
+    ],
+    "contracts/OSC_CONTRACT_v21.json": [
+        '"protocol": 21',
+        '"physical_helpful_items": true',
+        '"ambiguous_matches_fail_closed": true',
+    ],
+    "tests/test_helpful_items_protocol21.py": [
+        "test_self_head_touch_uses_selected_helpful_item",
+        "test_other_head_touch_is_rising_edge_only",
+        "test_head_receiver_bus_reconstructs_item_id",
     ],
     "stories_yggdrasil_osc/update_manager.py": [
         "context=get_ssl_context()",
@@ -173,11 +197,11 @@ for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
     for marker in markers:
         if marker not in text:
-            raise SystemExit(f"Missing v0.8.20 marker {marker!r} in {relative}")
+            raise SystemExit(f"Missing Protocol 21 marker {marker!r} in {relative}")
 
 print("Stories Of Yggdrasil OSC Desktop source audit passed.")
 print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print(f"{expected} preserves v0.8.18 combat authority and routes Sam.py HTTPS through native Windows WinHTTP/Schannel with certificate verification required.")
+print(f"{expected} preserves existing combat authority, adds Protocol 21 helpful-item handshakes, and keeps Sam.py HTTPS on native Windows WinHTTP/Schannel with certificate verification required.")
