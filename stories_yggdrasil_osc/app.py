@@ -989,6 +989,11 @@ class StoriesOSCApp:
                         f"Armed physical {helpful_item_name(action_id) or ('item ' + str(action_id))}; waiting for Head contact.",
                     )
                     break
+                if field == "item_type" and is_physical_helpful_item(action_id):
+                    # TB18 uses the dedicated Head-only helpful-item bus. Ignore the
+                    # legacy generic Item bus for these IDs so the target cannot be
+                    # healed twice and the actor inventory cannot be bypassed.
+                    break
                 self._schedule_sam_sync(event_name, immediate=True, vrc_trigger=True)
                 break
 
