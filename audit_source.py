@@ -8,11 +8,13 @@ from stories_yggdrasil_osc import __version__
 ROOT = Path(__file__).resolve().parent
 metadata = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
 
-expected = "0.8.20"
+expected = str(metadata.get("version") or "").strip()
+if not expected:
+    raise SystemExit("version.json is missing a version.")
 if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
-if str(metadata.get("version")) != expected:
-    raise SystemExit(f"version.json mismatch: {metadata.get('version')!r} != {expected!r}")
+if str(metadata.get("channel") or "") == "pre-build" and "prebuild" not in expected:
+    raise SystemExit("Pre-build channel versions must include 'prebuild'.")
 if str(metadata.get("api_recommended")) != "0.8.18":
     raise SystemExit("version.json must recommend OSC API 0.8.18")
 if not (ROOT / "Stories Of Yggdrasil OSC.spec").is_file():
@@ -35,6 +37,9 @@ required_markers = {
         "Incoming Contact Attribution",
         "combat_npc_source_combo",
         "combat_pvp_source_combo",
+        "Enable NPC Mode",
+        "Runtime Profile: NPC",
+        "def enable_npc_mode",
     ],
     "stories_yggdrasil_osc/qol.py": [
         "build_action_catalog",
@@ -87,6 +92,8 @@ required_markers = {
         '"/soy/combat/source/vrchat_user_id"',
         'payload["vrchat_user_id"]',
         "self.sam_client.combat_event(payload)",
+        "canonical_soy_contact",
+        "combat_catalog_activity_signature",
     ],
     "stories_yggdrasil_osc/controller.py": [
         "_authoritative_contact_iframe_until",
@@ -130,6 +137,11 @@ required_markers = {
         "test_sam_client_combat_event_keeps_same_id_across_transient_retry",
         "test_authoritative_contact_iframe_blocks_repeat_before_server_roundtrip",
     ],
+    "tests/test_prebuild_0821.py": [
+        "test_canonical_friendly_contact_is_not_reclassified_as_npc",
+        "test_external_unclassified_contact_keeps_enemy_fallback",
+        "test_enable_npc_mode_commits_runtime_switch_without_attacker",
+    ],
 }
 for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
@@ -142,4 +154,4 @@ print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print("v0.8.20 preserves v0.8.18 combat authority and routes Sam.py HTTPS through native Windows WinHTTP/Schannel with certificate verification required.")
+print(f"{expected} preserves v0.8.18 combat authority and routes Sam.py HTTPS through native Windows WinHTTP/Schannel with certificate verification required.")
