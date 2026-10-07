@@ -2,8 +2,14 @@ name: Build Windows Release
 
 on:
   push:
+    branches:
+      - "main"
     tags:
       - "v*"
+    paths:
+      - "version.json"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -32,11 +38,18 @@ jobs:
         run: |
           $metadata = Get-Content "version.json" -Raw | ConvertFrom-Json
           $version = [string]$metadata.version
+          $channel = [string]$metadata.channel
           $expectedTag = "v$version"
-          $actualTag = "${{ github.ref_name }}"
+          $actualRef = "${{ github.ref }}"
 
-          if ($actualTag -ne $expectedTag) {
-            throw "Release tag '$actualTag' does not match version.json '$expectedTag'."
+          if ($channel -ne "stable") {
+            throw "Public release workflow requires version.json channel 'stable'; got '$channel'."
+          }
+          if ($version.Contains("prebuild")) {
+            throw "Public release version '$version' must not be a prebuild."
+          }
+          if ($actualRef.StartsWith("refs/tags/") -and "${{ github.ref_name }}" -ne $expectedTag) {
+            throw "Release tag '${{ github.ref_name }}' does not match version.json '$expectedTag'."
           }
 
           $patchNotes = "PATCH_NOTES_v$version.md"
@@ -45,6 +58,7 @@ jobs:
           }
 
           "SOY_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "SOY_TAG=$expectedTag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "SOY_PATCH_NOTES=$patchNotes" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Run tests
@@ -79,7 +93,7 @@ jobs:
             Copy-Item "contracts" (Join-Path $releaseRoot "contracts") -Recurse -Force
           }
 
-          $zip = "Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip"
+          $zip = "Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_TAG }}.zip"
           Compress-Archive -Path $releaseRoot -DestinationPath $zip -Force
 
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -88,7 +102,12 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          tag_name: ${{ env.SOY_TAG }}
+          name: Stories Of Yggdrasil OSC ${{ env.SOY_TAG }}
+          target_commitish: ${{ github.sha }}
+          body_path: ${{ env.SOY_PATCH_NOTES }}
+          prerelease: false
+          make_latest: true
           files: |
-            Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip
-            Stories_Of_Yggdrasil_OSC_Windows_${{ github.ref_name }}.zip.sha256
+            Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_TAG }}.zip
+            Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_TAG }}.zip.sha256

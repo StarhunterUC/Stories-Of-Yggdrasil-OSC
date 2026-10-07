@@ -27,8 +27,38 @@ class UpdateEvent:
 
 
 def _version_tuple(value: str) -> tuple[int, ...]:
-    parts = [int(x) for x in re.findall(r"\d+", str(value))[:4]]
-    return tuple(parts + [0] * (4 - len(parts)))
+    """Order stable releases after their matching pre-builds.
+
+    Examples:
+      0.8.21-prebuild.4 < 0.8.21 < 0.8.22-prebuild.1
+    """
+    text = str(value or "").strip().lstrip("vV")
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-prebuild\.(\d+))?", text, flags=re.I)
+    if match:
+        major, minor, patch = (int(match.group(i)) for i in (1, 2, 3))
+        prebuild = match.group(4)
+        return (major, minor, patch, 0 if prebuild is not None else 1, int(prebuild or 0))
+    parts = [int(x) for x in re.findall(r"\d+", text)[:4]]
+    return tuple(parts + [0] * (5 - len(parts)))
+
+
+def _release_version(release: dict[str, Any]) -> str:
+    return str(release.get("tag_name") or release.get("name") or "").lstrip("vV")
+
+
+def _select_release(releases: list[dict[str, Any]], channel: str) -> dict[str, Any] | None:
+    normalized = str(channel or "stable").strip().lower()
+    allow_test = normalized in {"test", "test-builds", "test builds", "pre-build", "prebuild"}
+    eligible = [
+        release for release in releases
+        if isinstance(release, dict)
+        and not bool(release.get("draft"))
+        and (allow_test or not bool(release.get("prerelease")))
+        and _release_version(release)
+    ]
+    if not eligible:
+        return None
+    return max(eligible, key=lambda release: _version_tuple(_release_version(release)))
 
 
 class UpdateManager:
@@ -52,12 +82,12 @@ class UpdateManager:
             self._busy = value
             return True
 
-    def check(self, repo: str, asset_pattern: str = "") -> None:
+    def check(self, repo: str, asset_pattern: str = "", channel: str = "stable") -> None:
         if not self._set_busy(True):
             return
         threading.Thread(
             target=self._check_worker,
-            args=(str(repo).strip(), str(asset_pattern).strip()),
+            args=(str(repo).strip(), str(asset_pattern).strip(), str(channel or "stable").strip()),
             daemon=True,
             name="StoriesUpdateCheck",
         ).start()
@@ -86,12 +116,20 @@ class UpdateManager:
             },
         )
 
-    def _check_worker(self, repo: str, asset_pattern: str) -> None:
+    def _check_worker(self, repo: str, asset_pattern: str, channel: str) -> None:
         try:
-            self._progress(5, "Checking GitHub for updates…", "check")
+            normalized_channel = str(channel or "stable").strip().lower()
+            use_test_channel = normalized_channel in {"test", "test-builds", "test builds", "pre-build", "prebuild"}
+            channel_label = "Test Builds" if use_test_channel else "Stable"
+            self._progress(5, f"Checking GitHub {channel_label} channel for updates…", "check")
             if not repo or "/" not in repo:
                 raise RuntimeError("GitHub repository is not configured. Enter owner/repository in Settings.")
-            url = f"https://api.github.com/repos/{repo}/releases/latest"
+
+            if use_test_channel:
+                url = f"https://api.github.com/repos/{repo}/releases?per_page=30"
+            else:
+                url = f"https://api.github.com/repos/{repo}/releases/latest"
+
             req = urllib.request.Request(
                 url,
                 headers={
@@ -100,9 +138,20 @@ class UpdateManager:
                 },
             )
             with urllib.request.urlopen(req, timeout=12, context=get_ssl_context()) as response:
-                release = json.loads(response.read().decode("utf-8", errors="replace"))
-            self._progress(70, "Reading the latest release…", "check")
-            latest = str(release.get("tag_name") or release.get("name") or "").lstrip("vV")
+                raw = json.loads(response.read().decode("utf-8", errors="replace"))
+
+            if use_test_channel:
+                releases = raw if isinstance(raw, list) else []
+                release = _select_release(releases, "test")
+                if release is None:
+                    raise RuntimeError("No Stable or Test Build GitHub release is available.")
+            else:
+                if not isinstance(raw, dict):
+                    raise RuntimeError("GitHub returned an invalid Stable release response.")
+                release = raw
+
+            self._progress(70, f"Reading the latest {channel_label} release…", "check")
+            latest = _release_version(release)
             assets = release.get("assets") if isinstance(release.get("assets"), list) else []
             chosen = None
             for item in assets:
@@ -136,6 +185,9 @@ class UpdateManager:
                 "release_name": str(release.get("name") or release.get("tag_name") or latest),
                 "release_notes": str(release.get("body") or ""),
                 "published_at": release.get("published_at"),
+                "prerelease": bool(release.get("prerelease")),
+                "channel": "test" if use_test_channel else "stable",
+                "channel_label": channel_label,
                 "asset_name": str((chosen or {}).get("name") or ""),
                 "asset_url": str((chosen or {}).get("browser_download_url") or ""),
                 "checksum_url": str((checksum_asset or {}).get("browser_download_url") or ""),
@@ -143,9 +195,9 @@ class UpdateManager:
             }
             self._progress(100, "Update check complete.", "check")
             if payload["available"]:
-                self._emit("update_available", True, f"Version {payload['latest_version']} is available.", payload)
+                self._emit("update_available", True, f"Version {payload['latest_version']} is available on {channel_label}.", payload)
             else:
-                self._emit("update_current", True, "You are running the latest version.", payload)
+                self._emit("update_current", True, f"You are running the latest version for {channel_label}.", payload)
         except Exception as exc:
             self._emit("update_error", False, str(exc), {})
         finally:

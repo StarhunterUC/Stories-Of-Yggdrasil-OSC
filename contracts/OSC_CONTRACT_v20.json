@@ -1,0 +1,24 @@
+{
+  "contract": "Stories Of Yggdrasil OSC Desktop / Unity Protocol 20",
+  "desktop_version": "0.8.21-prebuild.2",
+  "api_version": "0.8.18",
+  "unity_tool": "0.5.10-TB17",
+  "unity_protocol": 20,
+  "alignment": {
+    "canonical_enemy_parameter": "SoY_DamageSourceEnemy",
+    "canonical_enemy_meaning": "Only SoY Caster Enemy",
+    "external_damage_source_parameter": "SoY_ExternalDamageSource",
+    "external_damage_source_tags": [
+      "Sword",
+      "Weapon",
+      "Hands"
+    ],
+    "external_does_not_set_canonical_enemy": true
+  },
+  "compatibility": {
+    "protocol_19": "avatar migration required",
+    "protocol_20": "supported when schema valid",
+    "future_protocol": "desktop update required"
+  },
+  "server_authority": "Sam.py remains authoritative; this patch does not modify Sam.py"
+}

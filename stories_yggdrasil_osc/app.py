@@ -15,6 +15,7 @@ from typing import Any
 from PIL import Image, ImageTk
 
 from . import OSC_API_MINIMUM, OSC_API_RECOMMENDED, __version__
+from .avatar_compatibility import UnityAvatarCompatibility
 from .combat import CombatState
 from .combat_authority import (
     CombatCatalog,
@@ -92,6 +93,7 @@ class StoriesOSCApp:
 
         self.closing = False
         self.output_cache: dict[str, Any] = {}
+        self.avatar_compatibility = UnityAvatarCompatibility()
         self.last_avatar_id = "—"
         self.last_event = "Program started."
         self.event_rows: list[dict[str, str]] = []
@@ -120,6 +122,9 @@ class StoriesOSCApp:
         self.combat_pending_events: dict[str, dict[str, Any]] = {}
         self.combat_last_result: dict[str, Any] = {}
         self.combat_catalog_refreshed_at = 0.0
+        # Pre-build 0.8.21: catalog polling stays frequent for combat identity
+        # freshness, but unchanged snapshots must not spam Recent Activity.
+        self.combat_catalog_activity_signature: tuple[Any, ...] | None = None
 
         self.sam_sync_due_at = 0.0
         self.sam_sync_inflight = False
@@ -465,14 +470,16 @@ class StoriesOSCApp:
         self.listener_status_label.grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=4)
         self.avatar_status_label = ttk.Label(osc_card, text="Avatar: —", style="Muted.Card.TLabel")
         self.avatar_status_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=4)
+        self.unity_status_label = ttk.Label(osc_card, text="Unity Tool: waiting for TB17 / Protocol 20 marker", style="Muted.Card.TLabel", wraplength=430, justify="left")
+        self.unity_status_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=4)
         self.activity_status_label = ttk.Label(osc_card, text="VRChat activity: none", style="Muted.Card.TLabel")
-        self.activity_status_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=4)
+        self.activity_status_label.grid(row=4, column=0, columnspan=2, sticky="w", padx=20, pady=4)
         osc_buttons = ttk.Frame(osc_card, style="CardInner.TFrame")
-        osc_buttons.grid(row=4, column=0, columnspan=2, sticky="ew", padx=20, pady=18)
+        osc_buttons.grid(row=5, column=0, columnspan=2, sticky="ew", padx=20, pady=18)
         ttk.Button(osc_buttons, text="Start Listener", style="Green.TButton", command=self.start_listener).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(osc_buttons, text="Stop", command=self.stop_listener).pack(side=tk.LEFT, padx=6)
         ttk.Button(osc_buttons, text="Restart", command=self.restart_listener).pack(side=tk.LEFT, padx=6)
-        ttk.Label(osc_card, text="VRChat defaults: receive 9000, send 9001.", style="Muted.Card.TLabel").grid(row=5, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 20))
+        ttk.Label(osc_card, text="VRChat defaults: receive 9000, send 9001. Stories-generated gameplay requires Unity OSC Protocol 20.", style="Muted.Card.TLabel").grid(row=6, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 20))
         return page
 
     def _build_npc_page(self) -> ttk.Frame:
@@ -551,6 +558,7 @@ class StoriesOSCApp:
         caps = self.remote_state.get("capabilities") if isinstance(self.remote_state.get("capabilities"), dict) else {}
         self.diagnostics_summary_label.configure(text=f"Sam.py: {'paired' if paired else 'not paired'}  •  API {api}  •  Desktop minimum {OSC_API_MINIMUM} / recommended {OSC_API_RECOMMENDED}  •  OSC listener: {'running' if self.osc.running else 'stopped'}")
         details = [
+            *self.avatar_compatibility.diagnostics_lines(),
             f"Combat profile: {'available' if profile else 'waiting'}",
             f"Effective affinities: {'available' if profile.get('affinities') else 'waiting'}",
             f"Attacker catalog: {'loaded' if self.npc_attacker_roster else 'waiting'}",
@@ -652,8 +660,24 @@ class StoriesOSCApp:
         ttk.Label(update_card, text="Updates", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(18, 10))
         self.github_repo_var = tk.StringVar(value=str(updates.get("github_repo") or ""))
         self.update_on_start_var = tk.BooleanVar(value=bool(updates.get("check_on_start", True)))
+        stored_channel = str(updates.get("channel") or "stable").strip().lower()
+        self.update_channel_var = tk.StringVar(value="Test Builds" if stored_channel == "test" else "Stable")
         self._entry(update_card, 1, "GitHub repository", self.github_repo_var)
-        ttk.Checkbutton(update_card, text="Automatically check at startup and every six hours", variable=self.update_on_start_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 16))
+        ttk.Label(update_card, text="Update channel", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
+        ttk.Combobox(
+            update_card,
+            textvariable=self.update_channel_var,
+            values=("Stable", "Test Builds"),
+            state="readonly",
+        ).grid(row=2, column=1, sticky="ew", padx=(0, 20), pady=6)
+        ttk.Label(
+            update_card,
+            text="Test Builds includes GitHub prereleases. Stable never installs a prerelease.",
+            style="Muted.Card.TLabel",
+            wraplength=700,
+            justify="left",
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 5))
+        ttk.Checkbutton(update_card, text="Automatically check at startup and every six hours", variable=self.update_on_start_var).grid(row=4, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 16))
         update_card.columnconfigure(1, weight=1)
 
         actions = ttk.Frame(body)
@@ -744,12 +768,38 @@ class StoriesOSCApp:
         if event.address == "/avatar/change":
             self.last_avatar_id = str(event.values[0]) if event.values else "—"
             self.output_cache.clear()
+            self.avatar_compatibility.reset(self.last_avatar_id)
             self.controller.handle_osc(event.address, event.values, event.received_at_monotonic)
-            self._append_activity("AVATAR", f"Loaded avatar {self._short_avatar(self.last_avatar_id)}.")
+            self._append_activity("AVATAR", f"Loaded avatar {self._short_avatar(self.last_avatar_id)}. Waiting for Unity Tool Protocol 20 marker.")
             self._schedule_sam_sync("avatar_change", immediate=True, vrc_trigger=False)
             return
-        if event.address.startswith("/avatar/parameters/") and self.last_avatar_id == "—":
-            self.last_avatar_id = "Build & Test / local"
+        if event.address.startswith("/avatar/parameters/"):
+            if self.last_avatar_id == "—":
+                self.last_avatar_id = "Build & Test / local"
+                self.avatar_compatibility.avatar_id = self.last_avatar_id
+            parameter_name = event.address[len("/avatar/parameters/"):]
+            parameter_value = event.values[0] if event.values else None
+
+            # TB17 / Protocol 20 publishes an explicit local compatibility marker.
+            # Marker traffic is consumed here and never forwarded to gameplay.
+            if self.avatar_compatibility.observe_parameter(parameter_name, parameter_value):
+                return
+
+            # Ignore Desktop -> avatar state echoes before compatibility
+            # classification so a pure external-compatible avatar is not mistaken
+            # for a legacy Stories avatar.
+            if self.output_cache.get(parameter_name, object()) == parameter_value:
+                return
+
+            # Stories-generated gameplay fails closed unless Protocol 20 and a
+            # valid current schema marker have been observed.
+            if self.avatar_compatibility.is_protected_soy_parameter(parameter_name):
+                self.avatar_compatibility.note_protected_input()
+                if not self.avatar_compatibility.compatible:
+                    if self.avatar_compatibility.block_notice_due(parameter_name):
+                        self._append_activity("UPDATE", self.avatar_compatibility.block_reason())
+                    return
+
         self.controller.handle_osc(event.address, event.values, event.received_at_monotonic)
 
     def _handle_combat_identity_osc(self, event: OSCEvent) -> None:
@@ -812,7 +862,19 @@ class StoriesOSCApp:
         elif "status" in result.event: category = "STATUS"
         elif result.event == "blocked": category = "BLOCK"
         elif result.event == "external_detected": category = "AVATAR"
-        self._append_activity(category, result.message)
+
+        # Alignment transport is high-frequency diagnostic telemetry. Keep Enemy
+        # Mode visible, but do not flood Recent Activity with source latch edges.
+        quiet_alignment = (
+            result.event == "telemetry"
+            and any(key in result.metadata for key in (
+                "damage_source_enemy",
+                "healing_source_enemy",
+                "external_damage_source",
+            ))
+        )
+        if not quiet_alignment:
+            self._append_activity(category, result.message)
         if result.accepted and result.event == "hit_contact":
             if self._submit_authoritative_contact(result):
                 return
@@ -886,6 +948,7 @@ class StoriesOSCApp:
 
         authority = self.config.setdefault("combat_authority", {})
         source_enemy = bool(result.metadata.get("source_enemy", False))
+        external_damage_source = bool(result.metadata.get("external_damage_source", False))
         hint_kind = str(self.combat_source_hint.kind or "").strip().casefold()
         if self.combat_source_hint.active(
             ttl_seconds=float(authority.get("source_hint_ttl_seconds", 2.0) or 2.0)
@@ -896,9 +959,17 @@ class StoriesOSCApp:
                 source_enemy = False
 
         # Existing generic model Contacts can arrive without an explicit Enemy
-        # alignment pulse.  If no verified PvP identity is selected, honor the
-        # project rule that an unclassified damaging model defaults to Enemy.
-        if not source_enemy and bool(authority.get("unclassified_contacts_are_enemy", True)):
+        # alignment pulse. Only truly external/unclassified contacts may fall
+        # back to Enemy. A canonical SoY Contact with no Enemy pulse is an
+        # explicit Friendly/Player-side contact and must never be silently
+        # reclassified as an NPC merely because a PvP identity was not selected.
+        contact_source = str(result.metadata.get("source") or "").strip().casefold()
+        canonical_soy_contact = contact_source == "direct" and not external_damage_source
+        if (
+            not source_enemy
+            and not canonical_soy_contact
+            and bool(authority.get("unclassified_contacts_are_enemy", True))
+        ):
             selected_player = bool(
                 str(authority.get("pvp_source_vrchat_user_id") or "").strip()
                 or str(authority.get("pvp_source_avatar_id") or "").strip()
@@ -1078,6 +1149,7 @@ class StoriesOSCApp:
         # source receiver; spells/Technicks/items use their action-bus receiver.
         if str(payload.get("hit_event") or "") or str(payload.get("status_event") or ""):
             payload["source_enemy"] = bool(payload.get("damage_source_enemy", False))
+            payload["external_damage_source"] = bool(payload.get("external_damage_source", False))
         elif any(int(payload.get(field, 0) or 0) > 0 for field in ("spell_type", "technick_type", "item_type")):
             payload["source_enemy"] = bool(payload.get("healing_source_enemy", False))
         elif any(int(payload.get(field, 0) or 0) > 0 for field in ("spell_cast_type", "technick_use_type", "item_use_type")):
@@ -1159,11 +1231,32 @@ class StoriesOSCApp:
             self.combat_player_rows_by_label = self.combat_catalog.player_rows_by_label()
             self._refresh_combat_source_selectors()
             warnings = len(self.combat_catalog.warnings)
-            self._append_activity(
-                "COMBAT",
-                f"Loaded {len(self.combat_catalog.mapped_enemy_labels())} mapped NPC source(s) and {len(self.combat_player_rows_by_label)} verified Player identity source(s)"
-                + (f" with {warnings} catalog warning(s)." if warnings else "."),
+
+            mapped_npcs = tuple(self.combat_catalog.mapped_enemy_labels())
+            player_identity_signature = tuple(
+                sorted(
+                    (
+                        str(row.get("user_id") or ""),
+                        str(row.get("char_name") or row.get("character") or row.get("name") or ""),
+                        str(row.get("vrchat_user_id") or ""),
+                        str(row.get("avatar_id") or ""),
+                    )
+                    for row in self.combat_catalog.player_identity_bindings
+                    if isinstance(row, dict)
+                )
             )
+            signature = (
+                mapped_npcs,
+                player_identity_signature,
+                tuple(sorted(str(value) for value in self.combat_catalog.warnings)),
+            )
+            if signature != self.combat_catalog_activity_signature:
+                self.combat_catalog_activity_signature = signature
+                self._append_activity(
+                    "COMBAT",
+                    f"Loaded {len(mapped_npcs)} mapped NPC source(s) and {len(self.combat_player_rows_by_label)} verified Player identity source(s)"
+                    + (f" with {warnings} catalog warning(s)." if warnings else "."),
+                )
             return
         if event.kind == "combat_event":
             self._handle_combat_event_result(event.data)
@@ -1714,7 +1807,11 @@ class StoriesOSCApp:
         self.update_check_automatic = bool(automatic)
         self.update_button.configure(text="Checking…", command=self.check_for_updates)
         self._show_update_progress("Checking for updates…", 2)
-        self.update_manager.check(repo, str(updates.get("asset_pattern") or ""))
+        self.update_manager.check(
+            repo,
+            str(updates.get("asset_pattern") or ""),
+            str(updates.get("channel") or "stable"),
+        )
 
     def _handle_update_event(self, event: UpdateEvent) -> None:
         if event.kind == "update_progress":
@@ -1807,11 +1904,11 @@ class StoriesOSCApp:
             player_text = str(self.npc_attacker_player_var.get() or "").strip()
             attacker_user_id = str(self.npc_attacker_player_ids.get(player_text) or player_text).strip()
             attacker_char_name = str(self.npc_attacker_char_var.get() or "").strip()
-            if attacker_mode == "verified" and npc_enabled:
-                if not attacker_user_id or not attacker_user_id.isdigit():
-                    raise ValueError("Verified Player → NPC damage requires the attacking player's numeric Discord ID or a player selected from the Sam.py attacker roster.")
-                if not attacker_char_name:
-                    raise ValueError("Verified Player → NPC damage requires an attacking character.")
+            # NPC Mode itself must not depend on a pre-selected Player → NPC
+            # attacker. Attacker attribution is required only when an actual
+            # Player → NPC Contact is processed. Keep any valid verified identity
+            # if supplied, but allow NPC runtime activation with no attacker chosen.
+            if attacker_mode == "verified" and attacker_user_id and attacker_char_name:
                 selected = next((row for row in self.npc_attacker_roster if str(row.get("user_id") or "") == attacker_user_id and str(row.get("character_name") or "").casefold() == attacker_char_name.casefold()), None)
                 if isinstance(selected, dict) and not bool(selected.get("eligible", True)):
                     raise ValueError(str(selected.get("unavailable_reason") or "That attacker is not eligible to attack."))
@@ -1839,6 +1936,7 @@ class StoriesOSCApp:
             updates = self.config["updates"]
             updates["github_repo"] = str(self.github_repo_var.get()).strip()
             updates["check_on_start"] = bool(self.update_on_start_var.get())
+            updates["channel"] = "test" if str(self.update_channel_var.get()).strip() == "Test Builds" else "stable"
             save_config(self.config)
             was_running = self.osc.running
             self.osc.reconfigure(listen_ip=osc["listen_ip"], listen_port=osc["listen_port"], vrchat_ip=osc["vrchat_ip"], vrchat_port=osc["vrchat_port"], restart=was_running)
@@ -1999,6 +2097,12 @@ class StoriesOSCApp:
         recent = self.controller.last_input_at and (time.monotonic() - self.controller.last_input_at) <= float(self.config["osc"].get("activity_timeout_seconds", 5.0))
         self.activity_status_label.configure(text="VRChat activity: active" if recent else "VRChat activity: waiting", foreground=THEME["green"] if recent else THEME["muted"])
         self.avatar_status_label.configure(text=f"Avatar: {self._short_avatar(self.last_avatar_id)}")
+        if hasattr(self, "unity_status_label"):
+            unity_status = self.avatar_compatibility.status
+            unity_color = THEME["green"] if unity_status == "compatible" else (
+                THEME["red"] if unity_status in {"update_required_avatar", "update_required_desktop", "schema_invalid"} else THEME["muted"]
+            )
+            self.unity_status_label.configure(text=self.avatar_compatibility.ui_summary(), foreground=unity_color)
         paired = bool(str(self.config.get("sam", {}).get("token") or "").strip())
         self.footer_sam.configure(text=f"Sam.py: {'paired' if paired else 'not paired'}", foreground=THEME["green"] if paired else THEME["muted"])
 

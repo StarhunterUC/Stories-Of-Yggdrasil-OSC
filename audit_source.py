@@ -8,11 +8,13 @@ from stories_yggdrasil_osc import __version__
 ROOT = Path(__file__).resolve().parent
 metadata = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
 
-expected = "0.8.20"
+expected = str(metadata.get("version") or "").strip()
+if not expected:
+    raise SystemExit("version.json is missing a version.")
 if __version__ != expected:
     raise SystemExit(f"Package version mismatch: {__version__!r} != {expected!r}")
-if str(metadata.get("version")) != expected:
-    raise SystemExit(f"version.json mismatch: {metadata.get('version')!r} != {expected!r}")
+if str(metadata.get("channel") or "") == "pre-build" and "prebuild" not in expected:
+    raise SystemExit("Pre-build channel versions must include 'prebuild'.")
 if str(metadata.get("api_recommended")) != "0.8.18":
     raise SystemExit("version.json must recommend OSC API 0.8.18")
 if not (ROOT / "Stories Of Yggdrasil OSC.spec").is_file():
@@ -35,6 +37,9 @@ required_markers = {
         "Incoming Contact Attribution",
         "combat_npc_source_combo",
         "combat_pvp_source_combo",
+        "Enable NPC Mode",
+        "Runtime Profile: NPC",
+        "def enable_npc_mode",
     ],
     "stories_yggdrasil_osc/qol.py": [
         "build_action_catalog",
@@ -45,6 +50,7 @@ required_markers = {
     ],
     "stories_yggdrasil_osc/config.py": [
         '"version": 20',
+        '"external_damage_source": "SoY_ExternalDamageSource"',
         '"window_geometry"',
         '"action_favorites"',
         '"npc_favorites"',
@@ -80,6 +86,13 @@ required_markers = {
         "winhttp_request",
         "Windows WinHTTP/Schannel",
     ],
+    "stories_yggdrasil_osc/avatar_compatibility.py": [
+        "MIN_UNITY_PROTOCOL = 20",
+        "MAX_UNITY_PROTOCOL = 20",
+        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.5"',
+        "SoY_UnitySchemaValid",
+        "SoY_UnityMarkerBeacon",
+    ],
     "stories_yggdrasil_osc/app.py": [
         "sam_pending_remote_state",
         'source == "poll"',
@@ -87,13 +100,22 @@ required_markers = {
         '"/soy/combat/source/vrchat_user_id"',
         'payload["vrchat_user_id"]',
         "self.sam_client.combat_event(payload)",
+        "canonical_soy_contact",
+        "external_damage_source",
+        "avatar_compatibility",
+        "combat_catalog_activity_signature",
     ],
     "stories_yggdrasil_osc/controller.py": [
         "_authoritative_contact_iframe_until",
+        "_external_damage_source_latched_until",
+        '"external_damage_source": False',
         '"reason": "contact_iframe"',
     ],
     "stories_yggdrasil_osc/update_manager.py": [
         "context=get_ssl_context()",
+        "Test Builds",
+        "_select_release",
+        "0.8.21-prebuild.4 < 0.8.21 < 0.8.22-prebuild.1",
     ],
     "requirements.txt": [
         "truststore>=0.10,<1",
@@ -130,6 +152,22 @@ required_markers = {
         "test_sam_client_combat_event_keeps_same_id_across_transient_retry",
         "test_authoritative_contact_iframe_blocks_repeat_before_server_roundtrip",
     ],
+    "tests/test_prebuild_0821.py": [
+        "test_canonical_friendly_contact_is_not_reclassified_as_npc",
+        "test_external_unclassified_contact_keeps_enemy_fallback",
+        "test_protocol20_external_source_is_not_treated_as_canonical_friendly",
+        "test_enable_npc_mode_commits_runtime_switch_without_attacker",
+    ],
+    "tests/test_unity_marker_v0821.py": [
+        "test_current_tb17_protocol20_marker_is_compatible",
+        "test_protocol19_requires_tb17_migration",
+        "test_protocol20_external_source_parameter_is_protected",
+        "test_protocol20_marker_tolerates_present_false_startup_race",
+        "test_protocol20_incomplete_marker_reports_incomplete_not_unsupported",
+        "test_tb17_1_beacon_recovers_late_desktop_start",
+        "test_tb17_1_beacon_alternates_without_losing_compatibility",
+        "test_unknown_beacon_value_does_not_bypass_fail_closed",
+    ],
 }
 for relative, markers in required_markers.items():
     text = (ROOT / relative).read_text(encoding="utf-8")
@@ -142,4 +180,4 @@ print(f"Desktop version: {expected}")
 print(f"OSC API minimum: {metadata.get('api_minimum')}")
 print(f"OSC API recommended: {metadata.get('api_recommended')}")
 print(f"Unity Tool: {metadata.get('unity_tool')}")
-print("v0.8.20 preserves v0.8.18 combat authority and routes Sam.py HTTPS through native Windows WinHTTP/Schannel with certificate verification required.")
+print(f"{expected} preserves v0.8.18 combat authority and routes Sam.py HTTPS through native Windows WinHTTP/Schannel with certificate verification required.")

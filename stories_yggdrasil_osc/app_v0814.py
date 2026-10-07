@@ -35,7 +35,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.20 native WinHTTP/Schannel transport over the v0.8.18 combat-authority layer."""
+    """v0.8.21-prebuild.2 Protocol 20 combat/NPC validation client over the v0.8.18 API layer."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -474,6 +474,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         ttk.Label(header, text="NPC Mode", style="PageTitle.TLabel").pack(side=tk.LEFT)
         ttk.Button(header, text="Refresh Rosters", command=self.refresh_npc_roster).pack(side=tk.RIGHT)
         ttk.Button(header, text="Disable NPC Mode", style="Danger.TButton", command=self.disable_npc_mode).pack(side=tk.RIGHT, padx=8)
+        ttk.Button(header, text="Enable NPC Mode", style="Green.TButton", command=self.enable_npc_mode).pack(side=tk.RIGHT, padx=8)
         npc_card = self._card(page)
         npc_card.pack(fill=tk.BOTH, expand=True)
         ttk.Label(npc_card, text="Authoritative NPC Runtime", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=5, sticky="w", padx=20, pady=(18, 10))
@@ -490,7 +491,14 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self.combat_npc_source_var = tk.StringVar(value=str(authority_cfg.get("incoming_npc_enemy_name") or ""))
         self.combat_pvp_source_var = tk.StringVar(value=str(authority_cfg.get("pvp_source_label") or ""))
 
-        ttk.Checkbutton(npc_card, text="Use this Desktop link as an NPC enemy", variable=self.npc_mode_var, command=self._refresh_npc_attacker_status).grid(row=1, column=0, columnspan=3, sticky="w", padx=20, pady=6)
+        self.npc_runtime_status_label = ttk.Label(
+            npc_card,
+            text="Runtime Profile: checking Sam.py…",
+            style="Muted.Card.TLabel",
+            wraplength=760,
+            justify="left",
+        )
+        self.npc_runtime_status_label.grid(row=1, column=0, columnspan=4, sticky="w", padx=20, pady=6)
         self.npc_favorite_button = ttk.Button(npc_card, text="☆ Favorite NPC", command=self.toggle_current_npc_favorite)
         self.npc_favorite_button.grid(row=1, column=4, sticky="e", padx=(0, 20), pady=6)
         ttk.Label(npc_card, text="Search", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
@@ -613,6 +621,59 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self._mark_ui_dirty()
         self._refresh_npc_values()
 
+    def _refresh_npc_runtime_status(self) -> None:
+        if not hasattr(self, "npc_runtime_status_label"):
+            return
+        npc_cfg = self.config.get("npc_mode", {})
+        requested = bool(npc_cfg.get("enabled", False))
+        profile_mode = str(self.remote_state.get("profile_mode") or "player").strip().casefold()
+        runtime_name = str(
+            (self.remote_character or {}).get("name")
+            or self.remote_state.get("active_character")
+            or self.config.get("profile", {}).get("name")
+            or "Unknown"
+        )
+        if profile_mode == "npc":
+            self.npc_runtime_status_label.configure(
+                text=f"Runtime Profile: NPC — {runtime_name} • NPC HP/MP/stats are authoritative.",
+                foreground=THEME["green"],
+            )
+        elif requested:
+            self.npc_runtime_status_label.configure(
+                text=f"Runtime Profile: NPC requested — waiting for Sam.py acknowledgement. Current profile: {runtime_name}.",
+                foreground=THEME["yellow"],
+            )
+        else:
+            self.npc_runtime_status_label.configure(
+                text=f"Runtime Profile: PLAYER — {runtime_name}.",
+                foreground=THEME["muted"],
+            )
+
+    def enable_npc_mode(self) -> None:
+        name = str(self.npc_enemy_var.get() or "").strip()
+        row = self.npc_by_name.get(name, {})
+        key = str(row.get("key") or "").strip()
+        if not name or not key:
+            messagebox.showwarning("NPC Mode", "Select an NPC from the Sam.py roster first.")
+            return
+        npc_cfg = self.config.setdefault("npc_mode", {})
+        npc_cfg["enabled"] = True
+        npc_cfg["enemy_name"] = name
+        npc_cfg["enemy_key"] = key
+        self.npc_mode_var.set(True)
+        save_config(self.config)
+
+        # NPC Mode is a runtime profile switch, not merely an Enemy Mode toggle.
+        # Force outgoing alignment immediately, then ask Sam.py to return the
+        # selected NPC profile so HP/MP/stats can replace the Player runtime copy.
+        self._send_parameter(self.config["parameters"]["enemy_mode"], True)
+        self.controller.telemetry["enemy_mode"] = True
+        self._schedule_sam_sync("npc_mode_enabled", immediate=True, vrc_trigger=False)
+        self.sam_client.pull()
+        self._append_activity("SYSTEM", f"NPC Mode requested: {name}. Waiting for Sam.py runtime profile acknowledgement.")
+        self._refresh_npc_runtime_status()
+        self._refresh_npc_attacker_status()
+
     def disable_npc_mode(self) -> None:
         self.npc_mode_var.set(False)
         self.config.setdefault("npc_mode", {})["enabled"] = False
@@ -620,7 +681,9 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self._send_parameter(self.config["parameters"]["enemy_mode"], False)
         self.controller.telemetry["enemy_mode"] = False
         self._schedule_sam_sync("npc_mode_disabled", immediate=True, vrc_trigger=False)
-        self._append_activity("SYSTEM", "NPC Mode disabled.")
+        self.sam_client.pull()
+        self._append_activity("SYSTEM", "NPC Mode disabled; restoring Player runtime profile.")
+        self._refresh_npc_runtime_status()
         self._refresh_npc_attacker_status()
 
     # ------------------------------------------------------------------
@@ -691,6 +754,10 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             "listener_running": bool(self.osc.running),
             "vrchat_recent_activity": recent_vrchat,
             "avatar_detected": self.last_avatar_id != "—",
+            "unity_tool": self.avatar_compatibility.tool_version,
+            "unity_protocol": self.avatar_compatibility.protocol if self.avatar_compatibility.protocol is not None else "unknown",
+            "unity_schema_valid": self.avatar_compatibility.schema_valid if self.avatar_compatibility.schema_valid is not None else "unknown",
+            "unity_compatible": self.avatar_compatibility.compatible,
             "active_character": str(self.remote_character.get("name") or ""),
             "combat_profile": bool(self.remote_state.get("combat_profile")),
             "attacker_roster": bool(self.npc_attacker_roster),
@@ -821,6 +888,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         super()._apply_sam_state(state, source=source, force=force)
         self.last_sam_success_epoch = time.time()
         self._rebuild_action_catalog()
+        self._refresh_npc_runtime_status()
 
     def _refresh_loop(self) -> None:
         if self.closing:
