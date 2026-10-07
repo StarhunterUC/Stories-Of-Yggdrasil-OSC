@@ -1,0 +1,84 @@
+name: Build Windows Pre-Build
+
+on:
+  push:
+    branches:
+      - "pre-build"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-prebuild:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out pre-build branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build requirements
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Validate pre-build metadata
+        shell: pwsh
+        run: |
+          $metadata = Get-Content "version.json" -Raw | ConvertFrom-Json
+          $version = [string]$metadata.version
+          if ([string]$metadata.channel -ne "pre-build") {
+            throw "version.json channel must be 'pre-build' on this branch."
+          }
+          if (-not $version.Contains("prebuild")) {
+            throw "Pre-build version '$version' must contain 'prebuild'."
+          }
+          "SOY_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          python -m pytest -q
+
+      - name: Run source audit
+        shell: pwsh
+        run: |
+          python audit_source.py
+
+      - name: Build executable
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force build, dist, prebuild -ErrorAction SilentlyContinue
+          pyinstaller --noconfirm --clean "Stories Of Yggdrasil OSC.spec"
+
+      - name: Assemble pre-build archive
+        shell: pwsh
+        run: |
+          $root = "prebuild/Stories Of Yggdrasil OSC"
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          Copy-Item "dist/Stories Of Yggdrasil OSC/*" $root -Recurse -Force
+          Copy-Item README.md, QUICK_START.md, CHANGELOG.md, version.json $root -Force
+          $notes = "PATCH_NOTES_v$env:SOY_VERSION.md"
+          if (Test-Path $notes) { Copy-Item $notes $root -Force }
+          if (Test-Path "contracts") {
+            Copy-Item "contracts" (Join-Path $root "contracts") -Recurse -Force
+          }
+          $zip = "Stories_Of_Yggdrasil_OSC_Windows_$env:SOY_VERSION.zip"
+          Compress-Archive -Path $root -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $zip" | Set-Content "$zip.sha256" -Encoding ascii
+
+      - name: Upload pre-build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stories-OSC-${{ env.SOY_VERSION }}
+          path: |
+            Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_VERSION }}.zip
+            Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_VERSION }}.zip.sha256
+          retention-days: 14
