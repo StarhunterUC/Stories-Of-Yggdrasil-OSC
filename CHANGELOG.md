@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.21 — Protocol 20 / TB17 Public Release
+
+- Promotes the tested v0.8.21-prebuild.4 line to Stable.
+- Supports the 117/118 periodic Unity compatibility beacon for late Desktop startup.
+- Recommends Unity Tool v0.5.10 TB17.5 with Unity Protocol 20.
+- Retains fail-closed avatar schema validation and Protocol 20 canonical/external source separation.
+- Adds Settings → Updates → Stable / Test Builds channel selection.
+- Stable ignores prereleases; Test Builds can install future GitHub prereleases.
+- Corrects version precedence so a stable release is newer than the same-version prebuild.
+- Keeps Sam.py OSC API v0.8.18 recommended / v0.8.13 minimum and requires no Sam.py change.
+
+
 ## v0.8.20 — Native Windows Sam.py HTTPS Transport
 
 - Routes Sam.py API HTTPS through Windows WinHTTP + Schannel on Windows instead of Python/OpenSSL.
