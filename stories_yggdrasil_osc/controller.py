@@ -67,6 +67,7 @@ class BridgeController:
         self._pending_counter = 0
         self._pending_status_counter = 0
         self._damage_source_enemy_latched_until = 0.0
+        self._external_damage_source_latched_until = 0.0
         self._authoritative_contact_iframe_until = 0.0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
@@ -94,6 +95,7 @@ class BridgeController:
             "item_type": 0,
             "healing_source_enemy": False,
             "damage_source_enemy": False,
+            "external_damage_source": False,
             "mist_charge": 0,
             "mist_max": 0,
             "diablos_applicable": False,
@@ -152,6 +154,7 @@ class BridgeController:
             self.parameters.get("item_bit_7", "SoY_ItemBit7"): ("item_bus_bit", "7"),
             self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
             self.parameters.get("damage_source_enemy", "SoY_DamageSourceEnemy"): ("telemetry_bool", "damage_source_enemy"),
+            self.parameters.get("external_damage_source", "SoY_ExternalDamageSource"): ("telemetry_bool", "external_damage_source"),
             self.parameters.get("mist_charge", "SoY_MistCharge"): ("telemetry_int", "mist_charge"),
             self.parameters.get("mist_max", "SoY_MistMax"): ("telemetry_int", "mist_max"),
             self.parameters.get("diablos_applicable", "SoY_DiablosApplicable"): ("telemetry_bool", "diablos_applicable"),
@@ -191,6 +194,12 @@ class BridgeController:
             or now < self._damage_source_enemy_latched_until
         )
 
+    def _current_external_damage_source(self, now: float) -> bool:
+        return bool(
+            self.telemetry.get("external_damage_source", False)
+            or now < self._external_damage_source_latched_until
+        )
+
     @property
     def configured_input_mode(self) -> str:
         mode = str(self.config.get("avatar_bridge", {}).get("input_mode", "auto")).strip().lower()
@@ -209,6 +218,7 @@ class BridgeController:
         self._pending_hits.clear()
         self._pending_statuses.clear()
         self._damage_source_enemy_latched_until = 0.0
+        self._external_damage_source_latched_until = 0.0
         self._authoritative_contact_iframe_until = 0.0
         self._spell_bus_active = False
         self._spell_bus_bits = [False] * 8
@@ -309,11 +319,16 @@ class BridgeController:
             if kind == "telemetry_bool":
                 value = _as_bool(raw_value)
                 if detail == "damage_source_enemy" and value:
-                    # Alignment and hit/status Contacts arrive as separate OSC packets.
-                    # Keep Enemy alignment latched briefly so packet order cannot
-                    # turn an Enemy hit into an unclassified/Friendly hit.
+                    # Canonical Stories Enemy alignment is latched briefly so packet
+                    # order cannot turn an Enemy hit into a Friendly hit.
                     self._damage_source_enemy_latched_until = max(
                         self._damage_source_enemy_latched_until, now + 0.35
+                    )
+                elif detail == "external_damage_source" and value:
+                    # Protocol 20: Sword / Weapon / Hands compatibility is tracked
+                    # separately from canonical SoY Caster Enemy alignment.
+                    self._external_damage_source_latched_until = max(
+                        self._external_damage_source_latched_until, now + 0.35
                     )
             elif kind == "telemetry_percent":
                 try:
@@ -597,8 +612,10 @@ class BridgeController:
                 )
             elif self.authoritative_sam_actions:
                 source_enemy = bool(pending.source_enemy or self._current_damage_source_enemy(t))
+                external_source = bool(self._current_external_damage_source(t))
                 self.telemetry["hit_event"] = pending.hit_type
                 self.telemetry["damage_source_enemy"] = source_enemy
+                self.telemetry["external_damage_source"] = external_source
                 self._authoritative_contact_iframe_until = t + max(
                     0.0,
                     float(self.config.get("combat", {}).get("global_invulnerability_seconds", 1.0) or 1.0),
@@ -614,6 +631,7 @@ class BridgeController:
                         "hit_type": pending.hit_type,
                         "source": pending.source,
                         "source_enemy": source_enemy,
+                        "external_damage_source": external_source,
                     },
                 )
             elif pending.external_health_owns_damage:
@@ -647,8 +665,10 @@ class BridgeController:
                 )
             else:
                 source_enemy = bool(pending_status.source_enemy or self._current_damage_source_enemy(t))
+                external_source = bool(self._current_external_damage_source(t))
                 self.telemetry["status_event"] = pending_status.status_name
                 self.telemetry["damage_source_enemy"] = source_enemy
+                self.telemetry["external_damage_source"] = external_source
                 result = EventResult(
                     True,
                     "status_contact",
@@ -660,6 +680,7 @@ class BridgeController:
                         "status": pending_status.status_name,
                         "source": pending_status.source,
                         "source_enemy": source_enemy,
+                        "external_damage_source": external_source,
                     },
                 )
             self._emit(result)
@@ -691,7 +712,9 @@ class BridgeController:
 
     def consume_damage_alignment(self) -> None:
         self.telemetry["damage_source_enemy"] = False
+        self.telemetry["external_damage_source"] = False
         self._damage_source_enemy_latched_until = 0.0
+        self._external_damage_source_latched_until = 0.0
 
     def authoritative_hit_feedback(self, hit_type: str, *, blocked: bool = False) -> None:
         hit = str(hit_type or "").strip().lower()
