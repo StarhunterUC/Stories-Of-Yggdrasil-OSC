@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-prebuild:
@@ -82,3 +82,16 @@ jobs:
             Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_VERSION }}.zip
             Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_VERSION }}.zip.sha256
           retention-days: 14
+
+      - name: Publish GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.SOY_VERSION }}
+          name: Stories Of Yggdrasil OSC v${{ env.SOY_VERSION }}
+          target_commitish: ${{ github.sha }}
+          body_path: PATCH_NOTES_v${{ env.SOY_VERSION }}.md
+          prerelease: true
+          make_latest: false
+          files: |
+            Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_VERSION }}.zip
+            Stories_Of_Yggdrasil_OSC_Windows_${{ env.SOY_VERSION }}.zip.sha256
