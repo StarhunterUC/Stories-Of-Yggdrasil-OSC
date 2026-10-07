@@ -296,6 +296,8 @@ def load_config() -> dict[str, Any]:
             updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
         updates_cfg.setdefault("check_on_start", True)
         updates_cfg.setdefault("check_interval_hours", 6)
+        channel = str(updates_cfg.get("channel") or "stable").strip().lower()
+        updates_cfg["channel"] = "test" if channel in {"test", "test builds", "test-builds", "pre-build", "prebuild"} else "stable"
         # v0.8.9 makes the project-wide Critical HP boundary authoritative.
         config.setdefault("profile", {})["critical_hp_percent"] = 0.15
         sam_cfg = config.setdefault("sam", {})
