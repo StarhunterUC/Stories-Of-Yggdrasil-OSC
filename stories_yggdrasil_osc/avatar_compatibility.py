@@ -5,7 +5,7 @@ from typing import Any
 
 MIN_UNITY_PROTOCOL = 20
 MAX_UNITY_PROTOCOL = 20
-RECOMMENDED_UNITY_TOOL = "0.5.10-TB17"
+RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.1"
 
 PARAM_PREFIX = "SoY_"
 MARKER_FIELDS = {
@@ -120,6 +120,17 @@ class UnityAvatarCompatibility:
         )
 
     @property
+    def core_marker_complete(self) -> bool:
+        # SoY_UnityToolPresent is retained as diagnostics/legacy marker data, but
+        # VRChat can briefly emit its Bool default before the local parameter
+        # driver publishes the marker state. The version/protocol/schema fields
+        # are sufficient to prove a current TB17+ authored avatar.
+        return all(
+            key in self.values
+            for key in ("major", "minor", "patch", "tb", "tb_revision", "protocol", "schema_valid")
+        )
+
+    @property
     def tool_version(self) -> str:
         if not any(key in self.values for key in ("major", "minor", "patch", "tb")):
             return "Unknown"
@@ -148,18 +159,16 @@ class UnityAvatarCompatibility:
 
     @property
     def status(self) -> str:
-        present = self.values.get("present")
         protocol = self.protocol
-        if present is False:
-            return "update_required_avatar"
         if protocol is not None and protocol > MAX_UNITY_PROTOCOL:
             return "update_required_desktop"
         if protocol is not None and protocol < MIN_UNITY_PROTOCOL:
             return "update_required_avatar"
         if self.schema_valid is False:
             return "schema_invalid"
-        if self.marker_complete:
-            if bool(present) and protocol == MIN_UNITY_PROTOCOL and self.schema_valid is True:
+        if self.core_marker_complete:
+            tool_tb = _as_int(self.values.get("tb"))
+            if protocol == MIN_UNITY_PROTOCOL and tool_tb >= 17 and self.schema_valid is True:
                 return "compatible"
             return "update_required_avatar"
         if self.saw_protected_input:
@@ -183,13 +192,18 @@ class UnityAvatarCompatibility:
                 "Open the current Unity Tool and run Migrate / Validate Avatar."
             )
         if status == "update_required_avatar":
-            if self.protocol is not None:
+            if self.protocol is not None and self.protocol != MIN_UNITY_PROTOCOL:
                 return (
                     f"Stories avatar protocol {self.protocol} is unsupported. Protocol "
                     f"{MIN_UNITY_PROTOCOL} is required; migrate/repair the avatar with {RECOMMENDED_UNITY_TOOL}."
                 )
+            if self.protocol == MIN_UNITY_PROTOCOL and not self.core_marker_complete:
+                return (
+                    f"Protocol {MIN_UNITY_PROTOCOL} was detected, but the Unity Tool marker is incomplete. "
+                    f"Run Safe Repair All / Migrate & Validate with {RECOMMENDED_UNITY_TOOL}, then reload the avatar."
+                )
             return (
-                "Stories gameplay input arrived without a current Unity Tool compatibility marker. "
+                "Stories gameplay input arrived without a complete current Unity Tool compatibility marker. "
                 f"Migrate/repair the avatar with {RECOMMENDED_UNITY_TOOL}."
             )
         return "Waiting for the Unity Tool compatibility marker."
@@ -212,7 +226,7 @@ class UnityAvatarCompatibility:
         if status == "update_required_avatar":
             proto = self.protocol if self.protocol is not None else "Unknown"
             return f"Unity Tool: {self.tool_version} • Protocol {proto} • AVATAR UPDATE REQUIRED"
-        return "Unity Tool: waiting for TB17 / Protocol 20 marker"
+        return "Unity Tool: waiting for TB17.1 / Protocol 20 marker"
 
     def diagnostics_lines(self) -> list[str]:
         status_labels = {
@@ -225,6 +239,7 @@ class UnityAvatarCompatibility:
         return [
             f"Unity Tool: {self.tool_version}",
             f"Unity OSC protocol: {self.protocol if self.protocol is not None else 'unknown'} (supported {MIN_UNITY_PROTOCOL}-{MAX_UNITY_PROTOCOL})",
+            f"Unity marker present flag: {self.values.get('present', 'unknown')}",
             f"Unity schema: {'valid' if self.schema_valid is True else 'invalid' if self.schema_valid is False else 'unknown'}",
             f"Unity compatibility: {status_labels.get(self.status, self.status)}",
         ]
