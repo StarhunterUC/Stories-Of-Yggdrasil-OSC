@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 MIN_UNITY_PROTOCOL = 20
-MAX_UNITY_PROTOCOL = 20
-RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.5"
+MAX_UNITY_PROTOCOL = 21
+RECOMMENDED_UNITY_TOOL = "0.5.10-TB18"
 
 PARAM_PREFIX = "SoY_"
 MARKER_FIELDS = {
@@ -43,6 +43,8 @@ OUTPUT_ONLY_PARAMETERS = frozenset(
         "SoY_MagicLocked",
         "SoY_MovementLocked",
         "SoY_HealingRejected",
+        "SoY_ItemUseResult",
+        "SoY_ItemReceiveResult",
     }
 )
 
@@ -109,20 +111,20 @@ class UnityAvatarCompatibility:
         else:
             self.values[field_name] = _as_int(value)
 
-        # TB17.1 periodically alternates an encoded local beacon between 117 and
-        # 118. Seeing either value proves the current Tool/Protocol/schema tuple
-        # even if Desktop started after VRChat had already emitted the static
-        # marker parameters.
-        if field_name == "beacon" and self.values[field_name] in {117, 118}:
+        # Periodic local beacons recover compatibility even when Desktop starts
+        # after VRChat emitted the static marker fields. Protocol 20/TB17 uses
+        # 117/118; Protocol 21/TB18 uses 121/122.
+        if field_name == "beacon" and self.values[field_name] in {117, 118, 121, 122}:
+            protocol21 = self.values[field_name] in {121, 122}
             self.values.update(
                 {
                     "present": True,
                     "major": 0,
                     "minor": 5,
                     "patch": 10,
-                    "tb": 17,
-                    "tb_revision": 1,
-                    "protocol": 20,
+                    "tb": 18 if protocol21 else 17,
+                    "tb_revision": 0 if protocol21 else 5,
+                    "protocol": 21 if protocol21 else 20,
                     "schema_valid": True,
                 }
             )
@@ -188,7 +190,9 @@ class UnityAvatarCompatibility:
             return "schema_invalid"
         if self.core_marker_complete:
             tool_tb = _as_int(self.values.get("tb"))
-            if protocol == MIN_UNITY_PROTOCOL and tool_tb >= 17 and self.schema_valid is True:
+            if protocol == 20 and tool_tb >= 17 and self.schema_valid is True:
+                return "compatible"
+            if protocol == 21 and tool_tb >= 18 and self.schema_valid is True:
                 return "compatible"
             return "update_required_avatar"
         if self.saw_protected_input:
@@ -214,8 +218,8 @@ class UnityAvatarCompatibility:
         if status == "update_required_avatar":
             if self.protocol is not None and self.protocol != MIN_UNITY_PROTOCOL:
                 return (
-                    f"Stories avatar protocol {self.protocol} is unsupported. Protocol "
-                    f"{MIN_UNITY_PROTOCOL} is required; migrate/repair the avatar with {RECOMMENDED_UNITY_TOOL}."
+                    f"Stories avatar protocol {self.protocol} is unsupported. Supported protocols are "
+                    f"{MIN_UNITY_PROTOCOL}-{MAX_UNITY_PROTOCOL}; use {RECOMMENDED_UNITY_TOOL} for Protocol 21 helpful-item interactions."
                 )
             if self.protocol == MIN_UNITY_PROTOCOL and not self.core_marker_complete:
                 return (
@@ -246,7 +250,7 @@ class UnityAvatarCompatibility:
         if status == "update_required_avatar":
             proto = self.protocol if self.protocol is not None else "Unknown"
             return f"Unity Tool: {self.tool_version} • Protocol {proto} • AVATAR UPDATE REQUIRED"
-        return "Unity Tool: waiting for TB17.1 / Protocol 20 marker"
+        return "Unity Tool: waiting for TB17/Protocol 20 or TB18/Protocol 21 marker"
 
     def diagnostics_lines(self) -> list[str]:
         status_labels = {
