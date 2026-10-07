@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import sys
+import types
+
+pythonosc = types.ModuleType("pythonosc")
+pythonosc.dispatcher = types.SimpleNamespace(Dispatcher=object)
+pythonosc.osc_server = types.SimpleNamespace(ThreadingOSCUDPServer=object)
+pythonosc.udp_client = types.SimpleNamespace(SimpleUDPClient=object)
+sys.modules.setdefault("pythonosc", pythonosc)
+
+from stories_yggdrasil_osc.avatar_compatibility import (
+    MAX_UNITY_PROTOCOL,
+    MIN_UNITY_PROTOCOL,
+    UnityAvatarCompatibility,
+)
+
+
+def publish_current(tracker: UnityAvatarCompatibility, *, protocol: int = 20, schema: bool = True) -> None:
+    for name, value in (
+        ("SoY_UnityToolPresent", True),
+        ("SoY_UnityToolMajor", 0),
+        ("SoY_UnityToolMinor", 5),
+        ("SoY_UnityToolPatch", 10),
+        ("SoY_UnityToolTB", 17),
+        ("SoY_UnityToolTBRevision", 0),
+        ("SoY_ProtocolVersion", protocol),
+        ("SoY_UnitySchemaValid", schema),
+    ):
+        assert tracker.observe_parameter(name, value)
+
+
+def test_current_tb17_protocol20_marker_is_compatible() -> None:
+    tracker = UnityAvatarCompatibility()
+    publish_current(tracker)
+    assert tracker.compatible
+    assert tracker.status == "compatible"
+    assert tracker.tool_version == "v0.5.10 TB17"
+    assert tracker.protocol == 20
+
+
+def test_protocol19_requires_tb17_migration() -> None:
+    tracker = UnityAvatarCompatibility()
+    publish_current(tracker, protocol=19)
+    assert not tracker.compatible
+    assert tracker.status == "update_required_avatar"
+    assert "20" in tracker.block_reason()
+
+
+def test_future_protocol_requires_desktop_update() -> None:
+    tracker = UnityAvatarCompatibility()
+    publish_current(tracker, protocol=MAX_UNITY_PROTOCOL + 1)
+    assert tracker.status == "update_required_desktop"
+
+
+def test_invalid_schema_fails_closed() -> None:
+    tracker = UnityAvatarCompatibility()
+    publish_current(tracker, schema=False)
+    assert tracker.status == "schema_invalid"
+    assert not tracker.compatible
+
+
+def test_external_aliases_are_not_protocol_gated() -> None:
+    tracker = UnityAvatarCompatibility()
+    for name in ("Health", "Hit By Weak Attack T0", "Sword", "Weapon", "Hands"):
+        assert not tracker.is_protected_soy_parameter(name)
+
+
+def test_protocol20_external_source_parameter_is_protected() -> None:
+    tracker = UnityAvatarCompatibility()
+    assert tracker.is_protected_soy_parameter("SoY_ExternalDamageSource")
+
+
+def test_unmarked_direct_soy_input_fails_closed() -> None:
+    tracker = UnityAvatarCompatibility()
+    tracker.note_protected_input()
+    assert tracker.status == "update_required_avatar"
