@@ -78,6 +78,12 @@ class BridgeController:
         self._item_bus_active = False
         self._item_bus_bits = [False] * 8
         self._item_bus_pending_until = 0.0
+        self._help_item_bus_active = False
+        self._help_item_bus_bits = [False] * 8
+        self._help_item_bus_pending_until = 0.0
+        self._help_item_bus_active = False
+        self._help_item_bus_bits = [False] * 8
+        self._help_item_bus_pending_until = 0.0
         self._action_bus_settle_seconds = 0.03
         self.current_avatar_id = ""
         self.last_input_at = 0.0
@@ -93,6 +99,7 @@ class BridgeController:
             "spell_type": 0,
             "technick_type": 0,
             "item_type": 0,
+            "helpful_item_received_type": 0,
             "healing_source_enemy": False,
             "damage_source_enemy": False,
             "external_damage_source": False,
@@ -253,6 +260,7 @@ class BridgeController:
             "spell_bus_active", "spell_bus_bit",
             "technick_bus_active", "technick_bus_bit",
             "item_bus_active", "item_bus_bit",
+            "help_item_bus_active", "help_item_bus_bit", "helpful_item_touch",
         }
         if direct_entry is not None and direct_entry[0] in always_direct_kinds:
             self._handle_input(name, direct_entry, values[0], t, source="direct")
@@ -287,6 +295,26 @@ class BridgeController:
                 self._handle_observed_health(raw_value, source="external")
             return
         if kind == "presence":
+            return
+
+        if kind == "help_item_bus_bit" and detail is not None:
+            try:
+                bit = int(detail)
+            except (TypeError, ValueError):
+                return
+            if 0 <= bit < len(self._help_item_bus_bits):
+                self._help_item_bus_bits[bit] = _as_bool(raw_value)
+                if self._help_item_bus_active:
+                    self._help_item_bus_pending_until = now + self._action_bus_settle_seconds
+            return
+
+        if kind == "help_item_bus_active":
+            self._help_item_bus_active = _as_bool(raw_value)
+            if self._help_item_bus_active:
+                self._help_item_bus_pending_until = now + self._action_bus_settle_seconds
+            else:
+                self._help_item_bus_pending_until = 0.0
+                self.telemetry["helpful_item_received_type"] = 0
             return
 
         if kind in {"spell_bus_bit", "technick_bus_bit", "item_bus_bit"} and detail is not None:
@@ -346,6 +374,25 @@ class BridgeController:
 
         value = _as_bool(raw_value)
         edge_key = f"{source}:{name}"
+        previous = self._last_bool_values.get(edge_key, False)
+        self._last_bool_values[edge_key] = value
+
+        if kind == "helpful_item_touch":
+            if value and not previous:
+                selected = int(self.telemetry.get("item_use_type", 0) or 0)
+                snap = self.state.snapshot(now)
+                self._emit(EventResult(
+                    selected > 0,
+                    "helpful_item_touch",
+                    ("Helpful item touched " + ("self Head." if detail == "self" else "another player's Head.")) if selected > 0
+                    else "Helpful-item Head contact ignored because no item is selected.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={"scope": detail, "item_id": selected, "source": "helpful_item_head_contact"},
+                ))
+            return
+
         previous = self._last_bool_values.get(edge_key, False)
         self._last_bool_values[edge_key] = value
 
