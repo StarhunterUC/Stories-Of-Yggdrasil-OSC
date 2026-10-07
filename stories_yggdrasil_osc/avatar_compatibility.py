@@ -17,6 +17,7 @@ MARKER_FIELDS = {
     "SoY_UnityToolTBRevision": "tb_revision",
     "SoY_ProtocolVersion": "protocol",
     "SoY_UnitySchemaValid": "schema_valid",
+    "SoY_UnityMarkerBeacon": "beacon",
 }
 MARKER_PARAMETERS = frozenset(MARKER_FIELDS)
 
@@ -107,6 +108,25 @@ class UnityAvatarCompatibility:
             self.values[field_name] = _as_bool(value)
         else:
             self.values[field_name] = _as_int(value)
+
+        # TB17.1 periodically alternates an encoded local beacon between 117 and
+        # 118. Seeing either value proves the current Tool/Protocol/schema tuple
+        # even if Desktop started after VRChat had already emitted the static
+        # marker parameters.
+        if field_name == "beacon" and self.values[field_name] in {117, 118}:
+            self.values.update(
+                {
+                    "present": True,
+                    "major": 0,
+                    "minor": 5,
+                    "patch": 10,
+                    "tb": 17,
+                    "tb_revision": 1,
+                    "protocol": 20,
+                    "schema_valid": True,
+                }
+            )
+            self._logged_blocks.clear()
         return True
 
     def note_protected_input(self) -> None:
@@ -240,6 +260,7 @@ class UnityAvatarCompatibility:
             f"Unity Tool: {self.tool_version}",
             f"Unity OSC protocol: {self.protocol if self.protocol is not None else 'unknown'} (supported {MIN_UNITY_PROTOCOL}-{MAX_UNITY_PROTOCOL})",
             f"Unity marker present flag: {self.values.get('present', 'unknown')}",
+            f"Unity marker beacon: {self.values.get('beacon', 'unknown')}",
             f"Unity schema: {'valid' if self.schema_valid is True else 'invalid' if self.schema_valid is False else 'unknown'}",
             f"Unity compatibility: {status_labels.get(self.status, self.status)}",
         ]
