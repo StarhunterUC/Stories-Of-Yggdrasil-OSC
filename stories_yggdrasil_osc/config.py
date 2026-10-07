@@ -201,6 +201,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "item_bit_7": "SoY_ItemBit7",
         "healing_source_enemy": "SoY_HealingSourceEnemy",
         "damage_source_enemy": "SoY_DamageSourceEnemy",
+        "external_damage_source": "SoY_ExternalDamageSource",
         "healing_rejected": "SoY_HealingRejected",
         "mist_charge": "SoY_MistCharge",
         "mist_max": "SoY_MistMax",
