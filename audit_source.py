@@ -89,7 +89,7 @@ required_markers = {
     "stories_yggdrasil_osc/avatar_compatibility.py": [
         "MIN_UNITY_PROTOCOL = 20",
         "MAX_UNITY_PROTOCOL = 20",
-        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17"',
+        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.1"',
         "SoY_UnitySchemaValid",
     ],
     "stories_yggdrasil_osc/app.py": [
@@ -158,6 +158,8 @@ required_markers = {
         "test_current_tb17_protocol20_marker_is_compatible",
         "test_protocol19_requires_tb17_migration",
         "test_protocol20_external_source_parameter_is_protected",
+        "test_protocol20_marker_tolerates_present_false_startup_race",
+        "test_protocol20_incomplete_marker_reports_incomplete_not_unsupported",
     ],
 }
 for relative, markers in required_markers.items():
