@@ -1839,11 +1839,11 @@ class StoriesOSCApp:
             player_text = str(self.npc_attacker_player_var.get() or "").strip()
             attacker_user_id = str(self.npc_attacker_player_ids.get(player_text) or player_text).strip()
             attacker_char_name = str(self.npc_attacker_char_var.get() or "").strip()
-            if attacker_mode == "verified" and npc_enabled:
-                if not attacker_user_id or not attacker_user_id.isdigit():
-                    raise ValueError("Verified Player → NPC damage requires the attacking player's numeric Discord ID or a player selected from the Sam.py attacker roster.")
-                if not attacker_char_name:
-                    raise ValueError("Verified Player → NPC damage requires an attacking character.")
+            # NPC Mode itself must not depend on a pre-selected Player → NPC
+            # attacker. Attacker attribution is required only when an actual
+            # Player → NPC Contact is processed. Keep any valid verified identity
+            # if supplied, but allow NPC runtime activation with no attacker chosen.
+            if attacker_mode == "verified" and attacker_user_id and attacker_char_name:
                 selected = next((row for row in self.npc_attacker_roster if str(row.get("user_id") or "") == attacker_user_id and str(row.get("character_name") or "").casefold() == attacker_char_name.casefold()), None)
                 if isinstance(selected, dict) and not bool(selected.get("eligible", True)):
                     raise ValueError(str(selected.get("unavailable_reason") or "That attacker is not eligible to attack."))
