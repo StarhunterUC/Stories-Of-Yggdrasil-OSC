@@ -135,6 +135,24 @@ class SamClient:
         # applying damage twice.
         self._commands.put(("combat_event", dict(payload)))
 
+    def helpful_item_self_use(self, item_id: int, event_id: str) -> None:
+        self._commands.put(("helpful_item_self", {
+            "item_id": int(item_id),
+            "event_id": str(event_id),
+        }))
+
+    def helpful_item_attempt(self, item_id: int, event_id: str) -> None:
+        self._commands.put(("helpful_item_attempt", {
+            "item_id": int(item_id),
+            "event_id": str(event_id),
+        }))
+
+    def helpful_item_receipt(self, item_id: int, event_id: str) -> None:
+        self._commands.put(("helpful_item_receipt", {
+            "item_id": int(item_id),
+            "event_id": str(event_id),
+        }))
+
     def use_recovery(self, kind: str, name: str) -> None:
         self._commands.put(
             ("use_recovery", {"kind": str(kind), "name": str(name)})
@@ -507,6 +525,51 @@ class SamClient:
                 str(result.get("message") or "OSC combat event processed."),
                 result,
                 source="combat_event",
+            )
+        elif command == "helpful_item_self":
+            result = self._request(
+                "POST",
+                "/helpful-item/self",
+                payload=payload,
+                use_auth=True,
+                timeout=5.0,
+            )
+            self._emit(
+                "helpful_item",
+                True,
+                str(result.get("message") or "Helpful item self-use processed."),
+                result,
+                source="helpful_item_self",
+            )
+        elif command == "helpful_item_attempt":
+            result = self._request(
+                "POST",
+                "/helpful-item/attempt",
+                payload=payload,
+                use_auth=True,
+                timeout=5.0,
+            )
+            self._emit(
+                "helpful_item",
+                True,
+                str(result.get("message") or "Helpful item attempt registered."),
+                result,
+                source="helpful_item_attempt",
+            )
+        elif command == "helpful_item_receipt":
+            result = self._request(
+                "POST",
+                "/helpful-item/receipt",
+                payload=payload,
+                use_auth=True,
+                timeout=5.0,
+            )
+            self._emit(
+                "helpful_item",
+                True,
+                str(result.get("message") or "Helpful item receipt processed."),
+                result,
+                source="helpful_item_receipt",
             )
         elif command == "use_recovery":
             result = self._request(
