@@ -12,11 +12,13 @@ class DummyController:
     def __init__(self):
         self.telemetry = {
             "damage_source_enemy": False,
+            "external_damage_source": False,
             "enemy_mode": False,
         }
 
     def consume_damage_alignment(self):
         self.telemetry["damage_source_enemy"] = False
+        self.telemetry["external_damage_source"] = False
 
 
 class DummyVar:
@@ -161,3 +163,25 @@ def test_enable_npc_mode_commits_runtime_switch_without_attacker(monkeypatch):
     assert ("SoY_IsEnemy", True) in app.sent
     assert app.sam_client.pull_count == 1
     assert saved
+
+
+def test_protocol20_external_source_is_not_treated_as_canonical_friendly():
+    app = _contact_app()
+    result = EventResult(
+        True,
+        "hit_contact",
+        "Average Contact sent to Sam.py.",
+        hp_before=100,
+        hp_after=100,
+        maximum_hp=100,
+        metadata={
+            "hit_type": "average",
+            "source": "direct",
+            "source_enemy": False,
+            "external_damage_source": True,
+        },
+    )
+
+    assert app._submit_authoritative_contact(result) is True
+    assert not app.sam_client.events
+    assert "NPC Contact is unattributed" in app.combat_last_result["message"]
