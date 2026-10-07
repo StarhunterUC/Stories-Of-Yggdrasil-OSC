@@ -50,6 +50,7 @@ required_markers = {
     ],
     "stories_yggdrasil_osc/config.py": [
         '"version": 20',
+        '"external_damage_source": "SoY_ExternalDamageSource"',
         '"window_geometry"',
         '"action_favorites"',
         '"npc_favorites"',
@@ -85,6 +86,12 @@ required_markers = {
         "winhttp_request",
         "Windows WinHTTP/Schannel",
     ],
+    "stories_yggdrasil_osc/avatar_compatibility.py": [
+        "MIN_UNITY_PROTOCOL = 20",
+        "MAX_UNITY_PROTOCOL = 20",
+        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17"',
+        "SoY_UnitySchemaValid",
+    ],
     "stories_yggdrasil_osc/app.py": [
         "sam_pending_remote_state",
         'source == "poll"',
@@ -93,10 +100,14 @@ required_markers = {
         'payload["vrchat_user_id"]',
         "self.sam_client.combat_event(payload)",
         "canonical_soy_contact",
+        "external_damage_source",
+        "avatar_compatibility",
         "combat_catalog_activity_signature",
     ],
     "stories_yggdrasil_osc/controller.py": [
         "_authoritative_contact_iframe_until",
+        "_external_damage_source_latched_until",
+        '"external_damage_source": False',
         '"reason": "contact_iframe"',
     ],
     "stories_yggdrasil_osc/update_manager.py": [
@@ -140,7 +151,13 @@ required_markers = {
     "tests/test_prebuild_0821.py": [
         "test_canonical_friendly_contact_is_not_reclassified_as_npc",
         "test_external_unclassified_contact_keeps_enemy_fallback",
+        "test_protocol20_external_source_is_not_treated_as_canonical_friendly",
         "test_enable_npc_mode_commits_runtime_switch_without_attacker",
+    ],
+    "tests/test_unity_marker_v0821.py": [
+        "test_current_tb17_protocol20_marker_is_compatible",
+        "test_protocol19_requires_tb17_migration",
+        "test_protocol20_external_source_parameter_is_protected",
     ],
 }
 for relative, markers in required_markers.items():
