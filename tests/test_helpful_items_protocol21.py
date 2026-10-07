@@ -98,3 +98,17 @@ def test_head_receiver_bus_clears_on_exit():
     assert controller.telemetry["helpful_item_received_type"] == 1
     controller.handle_osc("/avatar/parameters/SoY_HelpItemActive", (False,), 5.10)
     assert controller.telemetry["helpful_item_received_type"] == 0
+
+
+def test_tb18_protocol21_beacon_recovers_late_start():
+    from stories_yggdrasil_osc.avatar_compatibility import UnityAvatarCompatibility
+
+    tracker = UnityAvatarCompatibility()
+    tracker.note_protected_input()
+    assert not tracker.compatible
+    assert tracker.observe_parameter("SoY_UnityMarkerBeacon", 121)
+    assert tracker.compatible
+    assert tracker.protocol == 21
+    assert tracker.tool_version == "v0.5.10 TB18"
+    assert tracker.observe_parameter("SoY_UnityMarkerBeacon", 122)
+    assert tracker.compatible
