@@ -93,3 +93,28 @@ def test_protocol20_incomplete_marker_reports_incomplete_not_unsupported() -> No
     reason = tracker.block_reason()
     assert "incomplete" in reason.lower()
     assert "unsupported" not in reason.lower()
+
+
+def test_tb17_1_beacon_recovers_late_desktop_start() -> None:
+    tracker = UnityAvatarCompatibility()
+    tracker.note_protected_input()
+    assert not tracker.compatible
+    assert tracker.observe_parameter("SoY_UnityMarkerBeacon", 117)
+    assert tracker.compatible
+    assert tracker.tool_version == "v0.5.10 TB17.1"
+    assert tracker.protocol == 20
+    assert tracker.schema_valid is True
+
+
+def test_tb17_1_beacon_alternates_without_losing_compatibility() -> None:
+    tracker = UnityAvatarCompatibility()
+    for value in (117, 118, 117, 118):
+        assert tracker.observe_parameter("SoY_UnityMarkerBeacon", value)
+        assert tracker.compatible
+
+
+def test_unknown_beacon_value_does_not_bypass_fail_closed() -> None:
+    tracker = UnityAvatarCompatibility()
+    tracker.note_protected_input()
+    tracker.observe_parameter("SoY_UnityMarkerBeacon", 42)
+    assert not tracker.compatible
