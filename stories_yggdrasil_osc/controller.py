@@ -81,9 +81,6 @@ class BridgeController:
         self._help_item_bus_active = False
         self._help_item_bus_bits = [False] * 8
         self._help_item_bus_pending_until = 0.0
-        self._help_item_bus_active = False
-        self._help_item_bus_bits = [False] * 8
-        self._help_item_bus_pending_until = 0.0
         self._action_bus_settle_seconds = 0.03
         self.current_avatar_id = ""
         self.last_input_at = 0.0
@@ -393,9 +390,6 @@ class BridgeController:
                 ))
             return
 
-        previous = self._last_bool_values.get(edge_key, False)
-        self._last_bool_values[edge_key] = value
-
         if kind == "osc_probe":
             if previous != value:
                 snap = self.state.snapshot(now)
@@ -618,6 +612,22 @@ class BridgeController:
             if pending_until and pending_until <= t:
                 setattr(self, pending_attr, 0.0)
                 self._resolve_action_bus(bus_name, t)
+        if self._help_item_bus_pending_until and self._help_item_bus_pending_until <= t:
+            self._help_item_bus_pending_until = 0.0
+            if self._help_item_bus_active:
+                action_id = sum((1 << bit) for bit, enabled in enumerate(self._help_item_bus_bits) if enabled)
+                if action_id > 0:
+                    self.telemetry["helpful_item_received_type"] = action_id
+                    snap = self.state.snapshot(t)
+                    self._emit(EventResult(
+                        True,
+                        "helpful_item_received",
+                        f"Helpful item ID {action_id} touched this avatar's Head.",
+                        hp_before=snap["current_hp"],
+                        hp_after=snap["current_hp"],
+                        maximum_hp=snap["maximum_hp"],
+                        metadata={"item_id": action_id, "source": "helpful_item_head_bus"},
+                    ))
         while self._pending_hits and self._pending_hits[0][0] <= t:
             _, _, pending = heapq.heappop(self._pending_hits)
             block_cfg = self.config["combat"]["block"]
