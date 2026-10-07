@@ -89,7 +89,7 @@ required_markers = {
     "stories_yggdrasil_osc/avatar_compatibility.py": [
         "MIN_UNITY_PROTOCOL = 20",
         "MAX_UNITY_PROTOCOL = 20",
-        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.1"',
+        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.5"',
         "SoY_UnitySchemaValid",
         "SoY_UnityMarkerBeacon",
     ],
@@ -113,6 +113,9 @@ required_markers = {
     ],
     "stories_yggdrasil_osc/update_manager.py": [
         "context=get_ssl_context()",
+        "Test Builds",
+        "_select_release",
+        "0.8.21-prebuild.4 < 0.8.21 < 0.8.22-prebuild.1",
     ],
     "requirements.txt": [
         "truststore>=0.10,<1",
