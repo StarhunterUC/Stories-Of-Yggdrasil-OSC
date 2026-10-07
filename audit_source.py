@@ -91,6 +91,7 @@ required_markers = {
         "MAX_UNITY_PROTOCOL = 20",
         'RECOMMENDED_UNITY_TOOL = "0.5.10-TB17.1"',
         "SoY_UnitySchemaValid",
+        "SoY_UnityMarkerBeacon",
     ],
     "stories_yggdrasil_osc/app.py": [
         "sam_pending_remote_state",
@@ -160,6 +161,9 @@ required_markers = {
         "test_protocol20_external_source_parameter_is_protected",
         "test_protocol20_marker_tolerates_present_false_startup_race",
         "test_protocol20_incomplete_marker_reports_incomplete_not_unsupported",
+        "test_tb17_1_beacon_recovers_late_desktop_start",
+        "test_tb17_1_beacon_alternates_without_losing_compatibility",
+        "test_unknown_beacon_value_does_not_bypass_fail_closed",
     ],
 }
 for relative, markers in required_markers.items():
