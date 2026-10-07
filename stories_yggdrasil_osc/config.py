@@ -28,7 +28,7 @@ EXTERNAL_STATUS_PARAMETERS = {
 }
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 20,
+    "version": 21,
     "osc": {
         "listen_ip": "127.0.0.1",
         "listen_port": 9001,
@@ -90,6 +90,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "drive_avatar_health_from_sam": False,
         "drive_avatar_statuses_from_sam": False,
         "authoritative_vrc_damage": True,
+        "helpful_item_handshake": True,
+        "helpful_item_match_window_seconds": 0.90,
     },
     "vrchat_identity": {
         "user_id": "",
@@ -199,6 +201,19 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "item_bit_5": "SoY_ItemBit5",
         "item_bit_6": "SoY_ItemBit6",
         "item_bit_7": "SoY_ItemBit7",
+        "helpful_item_self_touch": "SoY_HelpItemSelfTouch",
+        "helpful_item_other_touch": "SoY_HelpItemOtherTouch",
+        "helpful_item_active": "SoY_HelpItemActive",
+        "helpful_item_bit_0": "SoY_HelpItemBit0",
+        "helpful_item_bit_1": "SoY_HelpItemBit1",
+        "helpful_item_bit_2": "SoY_HelpItemBit2",
+        "helpful_item_bit_3": "SoY_HelpItemBit3",
+        "helpful_item_bit_4": "SoY_HelpItemBit4",
+        "helpful_item_bit_5": "SoY_HelpItemBit5",
+        "helpful_item_bit_6": "SoY_HelpItemBit6",
+        "helpful_item_bit_7": "SoY_HelpItemBit7",
+        "helpful_item_use_result": "SoY_ItemUseResult",
+        "helpful_item_receive_result": "SoY_ItemReceiveResult",
         "healing_source_enemy": "SoY_HealingSourceEnemy",
         "damage_source_enemy": "SoY_DamageSourceEnemy",
         "external_damage_source": "SoY_ExternalDamageSource",
@@ -290,7 +305,7 @@ def load_config() -> dict[str, Any]:
             raise ValueError("Settings root must be an object.")
         config = _deep_merge(DEFAULT_CONFIG, raw)
         _migrate_avatar_bridge(raw, config)
-        config["version"] = 20
+        config["version"] = 21
         updates_cfg = config.setdefault("updates", {})
         if not str(updates_cfg.get("github_repo") or "").strip():
             updates_cfg["github_repo"] = "StarhunterUC/Stories-Of-Yggdrasil-OSC"
@@ -303,6 +318,8 @@ def load_config() -> dict[str, Any]:
         sam_cfg = config.setdefault("sam", {})
         sam_cfg.setdefault("idle_poll_seconds", 5.0)
         sam_cfg.setdefault("max_backoff_seconds", 10.0)
+        sam_cfg.setdefault("helpful_item_handshake", True)
+        sam_cfg.setdefault("helpful_item_match_window_seconds", 0.90)
         # v0.8.15: the previous default could sleep for 60 seconds after a
         # short VPS/API interruption. Migrate that legacy value down so an
         # existing installation actually receives the reconnect repair.
