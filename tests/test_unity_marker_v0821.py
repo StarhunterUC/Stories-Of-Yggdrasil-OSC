@@ -75,3 +75,21 @@ def test_unmarked_direct_soy_input_fails_closed() -> None:
     tracker = UnityAvatarCompatibility()
     tracker.note_protected_input()
     assert tracker.status == "update_required_avatar"
+
+
+def test_protocol20_marker_tolerates_present_false_startup_race() -> None:
+    tracker = UnityAvatarCompatibility()
+    publish_current(tracker)
+    tracker.observe_parameter("SoY_UnityToolPresent", False)
+    assert tracker.compatible
+    assert tracker.status == "compatible"
+
+
+def test_protocol20_incomplete_marker_reports_incomplete_not_unsupported() -> None:
+    tracker = UnityAvatarCompatibility()
+    tracker.observe_parameter("SoY_ProtocolVersion", 20)
+    tracker.note_protected_input()
+    assert tracker.status == "update_required_avatar"
+    reason = tracker.block_reason()
+    assert "incomplete" in reason.lower()
+    assert "unsupported" not in reason.lower()
