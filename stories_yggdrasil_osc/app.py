@@ -660,8 +660,24 @@ class StoriesOSCApp:
         ttk.Label(update_card, text="Updates", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(18, 10))
         self.github_repo_var = tk.StringVar(value=str(updates.get("github_repo") or ""))
         self.update_on_start_var = tk.BooleanVar(value=bool(updates.get("check_on_start", True)))
+        stored_channel = str(updates.get("channel") or "stable").strip().lower()
+        self.update_channel_var = tk.StringVar(value="Test Builds" if stored_channel == "test" else "Stable")
         self._entry(update_card, 1, "GitHub repository", self.github_repo_var)
-        ttk.Checkbutton(update_card, text="Automatically check at startup and every six hours", variable=self.update_on_start_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 16))
+        ttk.Label(update_card, text="Update channel", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
+        ttk.Combobox(
+            update_card,
+            textvariable=self.update_channel_var,
+            values=("Stable", "Test Builds"),
+            state="readonly",
+        ).grid(row=2, column=1, sticky="ew", padx=(0, 20), pady=6)
+        ttk.Label(
+            update_card,
+            text="Test Builds includes GitHub prereleases. Stable never installs a prerelease.",
+            style="Muted.Card.TLabel",
+            wraplength=700,
+            justify="left",
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 5))
+        ttk.Checkbutton(update_card, text="Automatically check at startup and every six hours", variable=self.update_on_start_var).grid(row=4, column=0, columnspan=2, sticky="w", padx=20, pady=(5, 16))
         update_card.columnconfigure(1, weight=1)
 
         actions = ttk.Frame(body)
@@ -1791,7 +1807,11 @@ class StoriesOSCApp:
         self.update_check_automatic = bool(automatic)
         self.update_button.configure(text="Checking…", command=self.check_for_updates)
         self._show_update_progress("Checking for updates…", 2)
-        self.update_manager.check(repo, str(updates.get("asset_pattern") or ""))
+        self.update_manager.check(
+            repo,
+            str(updates.get("asset_pattern") or ""),
+            str(updates.get("channel") or "stable"),
+        )
 
     def _handle_update_event(self, event: UpdateEvent) -> None:
         if event.kind == "update_progress":
@@ -1916,6 +1936,7 @@ class StoriesOSCApp:
             updates = self.config["updates"]
             updates["github_repo"] = str(self.github_repo_var.get()).strip()
             updates["check_on_start"] = bool(self.update_on_start_var.get())
+            updates["channel"] = "test" if str(self.update_channel_var.get()).strip() == "Test Builds" else "stable"
             save_config(self.config)
             was_running = self.osc.running
             self.osc.reconfigure(listen_ip=osc["listen_ip"], listen_port=osc["listen_port"], vrchat_ip=osc["vrchat_ip"], vrchat_port=osc["vrchat_port"], restart=was_running)
