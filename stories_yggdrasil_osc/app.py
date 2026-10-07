@@ -120,6 +120,9 @@ class StoriesOSCApp:
         self.combat_pending_events: dict[str, dict[str, Any]] = {}
         self.combat_last_result: dict[str, Any] = {}
         self.combat_catalog_refreshed_at = 0.0
+        # Pre-build 0.8.21: catalog polling stays frequent for combat identity
+        # freshness, but unchanged snapshots must not spam Recent Activity.
+        self.combat_catalog_activity_signature: tuple[Any, ...] | None = None
 
         self.sam_sync_due_at = 0.0
         self.sam_sync_inflight = False
@@ -896,9 +899,17 @@ class StoriesOSCApp:
                 source_enemy = False
 
         # Existing generic model Contacts can arrive without an explicit Enemy
-        # alignment pulse.  If no verified PvP identity is selected, honor the
-        # project rule that an unclassified damaging model defaults to Enemy.
-        if not source_enemy and bool(authority.get("unclassified_contacts_are_enemy", True)):
+        # alignment pulse. Only truly external/unclassified contacts may fall
+        # back to Enemy. A canonical SoY Contact with no Enemy pulse is an
+        # explicit Friendly/Player-side contact and must never be silently
+        # reclassified as an NPC merely because a PvP identity was not selected.
+        contact_source = str(result.metadata.get("source") or "").strip().casefold()
+        canonical_soy_contact = contact_source == "direct"
+        if (
+            not source_enemy
+            and not canonical_soy_contact
+            and bool(authority.get("unclassified_contacts_are_enemy", True))
+        ):
             selected_player = bool(
                 str(authority.get("pvp_source_vrchat_user_id") or "").strip()
                 or str(authority.get("pvp_source_avatar_id") or "").strip()
@@ -1159,11 +1170,32 @@ class StoriesOSCApp:
             self.combat_player_rows_by_label = self.combat_catalog.player_rows_by_label()
             self._refresh_combat_source_selectors()
             warnings = len(self.combat_catalog.warnings)
-            self._append_activity(
-                "COMBAT",
-                f"Loaded {len(self.combat_catalog.mapped_enemy_labels())} mapped NPC source(s) and {len(self.combat_player_rows_by_label)} verified Player identity source(s)"
-                + (f" with {warnings} catalog warning(s)." if warnings else "."),
+
+            mapped_npcs = tuple(self.combat_catalog.mapped_enemy_labels())
+            player_identity_signature = tuple(
+                sorted(
+                    (
+                        str(row.get("user_id") or ""),
+                        str(row.get("char_name") or row.get("character") or row.get("name") or ""),
+                        str(row.get("vrchat_user_id") or ""),
+                        str(row.get("avatar_id") or ""),
+                    )
+                    for row in self.combat_catalog.player_identity_bindings
+                    if isinstance(row, dict)
+                )
             )
+            signature = (
+                mapped_npcs,
+                player_identity_signature,
+                tuple(sorted(str(value) for value in self.combat_catalog.warnings)),
+            )
+            if signature != self.combat_catalog_activity_signature:
+                self.combat_catalog_activity_signature = signature
+                self._append_activity(
+                    "COMBAT",
+                    f"Loaded {len(mapped_npcs)} mapped NPC source(s) and {len(self.combat_player_rows_by_label)} verified Player identity source(s)"
+                    + (f" with {warnings} catalog warning(s)." if warnings else "."),
+                )
             return
         if event.kind == "combat_event":
             self._handle_combat_event_result(event.data)
