@@ -35,7 +35,7 @@ from .qol import (
 
 
 class StoriesOSCAppV0814(StoriesOSCApp):
-    """v0.8.21 pre-build combat/NPC validation client over the v0.8.18 API layer."""
+    """v0.8.21-prebuild.2 Protocol 20 combat/NPC validation client over the v0.8.18 API layer."""
 
     def __init__(self, root: tk.Tk) -> None:
         try:
@@ -754,6 +754,10 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             "listener_running": bool(self.osc.running),
             "vrchat_recent_activity": recent_vrchat,
             "avatar_detected": self.last_avatar_id != "—",
+            "unity_tool": self.avatar_compatibility.tool_version,
+            "unity_protocol": self.avatar_compatibility.protocol if self.avatar_compatibility.protocol is not None else "unknown",
+            "unity_schema_valid": self.avatar_compatibility.schema_valid if self.avatar_compatibility.schema_valid is not None else "unknown",
+            "unity_compatible": self.avatar_compatibility.compatible,
             "active_character": str(self.remote_character.get("name") or ""),
             "combat_profile": bool(self.remote_state.get("combat_profile")),
             "attacker_roster": bool(self.npc_attacker_roster),
