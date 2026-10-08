@@ -112,3 +112,24 @@ def test_tb18_protocol21_beacon_recovers_late_start():
     assert tracker.tool_version == "v0.5.10 TB18"
     assert tracker.observe_parameter("SoY_UnityMarkerBeacon", 122)
     assert tracker.compatible
+
+
+def test_pvp_attack_attempt_emits_tier():
+    controller, events = _controller()
+    controller.handle_osc("/avatar/parameters/SoY_PvPAttemptStrong", (True,), 6.00)
+
+    matches = [event for event in events if event.event == "pvp_attack_attempt"]
+    assert len(matches) == 1
+    assert matches[0].metadata["tier"] == "strong"
+
+
+def test_pvp_attack_attempt_is_rising_edge_only():
+    controller, events = _controller()
+    controller.handle_osc("/avatar/parameters/SoY_PvPAttemptAverage", (True,), 7.00)
+    controller.handle_osc("/avatar/parameters/SoY_PvPAttemptAverage", (True,), 7.01)
+    controller.handle_osc("/avatar/parameters/SoY_PvPAttemptAverage", (False,), 7.10)
+    controller.handle_osc("/avatar/parameters/SoY_PvPAttemptAverage", (True,), 7.20)
+
+    matches = [event for event in events if event.event == "pvp_attack_attempt"]
+    assert len(matches) == 2
+    assert all(event.metadata["tier"] == "average" for event in matches)
