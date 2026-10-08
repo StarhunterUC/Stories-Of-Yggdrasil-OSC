@@ -101,7 +101,7 @@ def test_tb17_1_beacon_recovers_late_desktop_start() -> None:
     assert not tracker.compatible
     assert tracker.observe_parameter("SoY_UnityMarkerBeacon", 117)
     assert tracker.compatible
-    assert tracker.tool_version == "v0.5.10 TB17.1"
+    assert tracker.tool_version == "v0.5.10 TB17.5"
     assert tracker.protocol == 20
     assert tracker.schema_valid is True
 

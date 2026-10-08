@@ -1,0 +1,32 @@
+{
+  "contract": "Stories Of Yggdrasil OSC Desktop / Unity Protocol 21",
+  "desktop_version": "0.8.22-prebuild.1",
+  "api_version": "0.8.19",
+  "unity_tool": "0.5.10-TB18",
+  "protocol": 21,
+  "backward_compatibility": {
+    "protocol_20": true,
+    "protocol_21": true
+  },
+  "helpful_items": {
+    "physical_helpful_items": true,
+    "selector_does_not_consume_inventory": true,
+    "self_head_contact": "authenticated self-use",
+    "other_head_contact": "authenticated actor attempt + authenticated target receipt",
+    "match_window_seconds": 0.9,
+    "ambiguous_matches_fail_closed": true,
+    "inventory_consumed_after_success_only": true,
+    "legacy_generic_item_bus_ignored_for_physical_helpful_ids": true,
+    "result_parameters": [
+      "SoY_ItemUseResult",
+      "SoY_ItemReceiveResult"
+    ]
+  },
+  "safety": {
+    "contact_tags_do_not_claim_remote_owner_identity": true,
+    "server_authoritative_inventory": true,
+    "server_authoritative_target_application": true,
+    "idempotent_event_ids": true
+  },
+  "sam_py": "Sam.py/fight_system.py v4.4.135 transaction helper required; restricted OSC API handlers required"
+}

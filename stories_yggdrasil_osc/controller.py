@@ -78,6 +78,9 @@ class BridgeController:
         self._item_bus_active = False
         self._item_bus_bits = [False] * 8
         self._item_bus_pending_until = 0.0
+        self._help_item_bus_active = False
+        self._help_item_bus_bits = [False] * 8
+        self._help_item_bus_pending_until = 0.0
         self._action_bus_settle_seconds = 0.03
         self.current_avatar_id = ""
         self.last_input_at = 0.0
@@ -93,6 +96,7 @@ class BridgeController:
             "spell_type": 0,
             "technick_type": 0,
             "item_type": 0,
+            "helpful_item_received_type": 0,
             "healing_source_enemy": False,
             "damage_source_enemy": False,
             "external_damage_source": False,
@@ -152,6 +156,21 @@ class BridgeController:
             self.parameters.get("item_bit_5", "SoY_ItemBit5"): ("item_bus_bit", "5"),
             self.parameters.get("item_bit_6", "SoY_ItemBit6"): ("item_bus_bit", "6"),
             self.parameters.get("item_bit_7", "SoY_ItemBit7"): ("item_bus_bit", "7"),
+            self.parameters.get("helpful_item_self_touch", "SoY_HelpItemSelfTouch"): ("helpful_item_touch", "self"),
+            self.parameters.get("helpful_item_other_touch", "SoY_HelpItemOtherTouch"): ("helpful_item_touch", "other"),
+            self.parameters.get("helpful_item_active", "SoY_HelpItemActive"): ("help_item_bus_active", None),
+            self.parameters.get("helpful_item_bit_0", "SoY_HelpItemBit0"): ("help_item_bus_bit", "0"),
+            self.parameters.get("helpful_item_bit_1", "SoY_HelpItemBit1"): ("help_item_bus_bit", "1"),
+            self.parameters.get("helpful_item_bit_2", "SoY_HelpItemBit2"): ("help_item_bus_bit", "2"),
+            self.parameters.get("helpful_item_bit_3", "SoY_HelpItemBit3"): ("help_item_bus_bit", "3"),
+            self.parameters.get("helpful_item_bit_4", "SoY_HelpItemBit4"): ("help_item_bus_bit", "4"),
+            self.parameters.get("helpful_item_bit_5", "SoY_HelpItemBit5"): ("help_item_bus_bit", "5"),
+            self.parameters.get("helpful_item_bit_6", "SoY_HelpItemBit6"): ("help_item_bus_bit", "6"),
+            self.parameters.get("helpful_item_bit_7", "SoY_HelpItemBit7"): ("help_item_bus_bit", "7"),
+            self.parameters.get("pvp_attempt_weak", "SoY_PvPAttemptWeak"): ("pvp_attack_attempt", "weak"),
+            self.parameters.get("pvp_attempt_average", "SoY_PvPAttemptAverage"): ("pvp_attack_attempt", "average"),
+            self.parameters.get("pvp_attempt_strong", "SoY_PvPAttemptStrong"): ("pvp_attack_attempt", "strong"),
+            self.parameters.get("pvp_attempt_critical", "SoY_PvPAttemptCritical"): ("pvp_attack_attempt", "critical"),
             self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
             self.parameters.get("damage_source_enemy", "SoY_DamageSourceEnemy"): ("telemetry_bool", "damage_source_enemy"),
             self.parameters.get("external_damage_source", "SoY_ExternalDamageSource"): ("telemetry_bool", "external_damage_source"),
@@ -253,6 +272,8 @@ class BridgeController:
             "spell_bus_active", "spell_bus_bit",
             "technick_bus_active", "technick_bus_bit",
             "item_bus_active", "item_bus_bit",
+            "help_item_bus_active", "help_item_bus_bit", "helpful_item_touch",
+            "pvp_attack_attempt",
         }
         if direct_entry is not None and direct_entry[0] in always_direct_kinds:
             self._handle_input(name, direct_entry, values[0], t, source="direct")
@@ -287,6 +308,26 @@ class BridgeController:
                 self._handle_observed_health(raw_value, source="external")
             return
         if kind == "presence":
+            return
+
+        if kind == "help_item_bus_bit" and detail is not None:
+            try:
+                bit = int(detail)
+            except (TypeError, ValueError):
+                return
+            if 0 <= bit < len(self._help_item_bus_bits):
+                self._help_item_bus_bits[bit] = _as_bool(raw_value)
+                if self._help_item_bus_active:
+                    self._help_item_bus_pending_until = now + self._action_bus_settle_seconds
+            return
+
+        if kind == "help_item_bus_active":
+            self._help_item_bus_active = _as_bool(raw_value)
+            if self._help_item_bus_active:
+                self._help_item_bus_pending_until = now + self._action_bus_settle_seconds
+            else:
+                self._help_item_bus_pending_until = 0.0
+                self.telemetry["helpful_item_received_type"] = 0
             return
 
         if kind in {"spell_bus_bit", "technick_bus_bit", "item_bus_bit"} and detail is not None:
@@ -348,6 +389,36 @@ class BridgeController:
         edge_key = f"{source}:{name}"
         previous = self._last_bool_values.get(edge_key, False)
         self._last_bool_values[edge_key] = value
+
+        if kind == "helpful_item_touch":
+            if value and not previous:
+                selected = int(self.telemetry.get("item_use_type", 0) or 0)
+                snap = self.state.snapshot(now)
+                self._emit(EventResult(
+                    selected > 0,
+                    "helpful_item_touch",
+                    ("Helpful item touched " + ("self Head." if detail == "self" else "another player's Head.")) if selected > 0
+                    else "Helpful-item Head contact ignored because no item is selected.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={"scope": detail, "item_id": selected, "source": "helpful_item_head_contact"},
+                ))
+            return
+
+        if kind == "pvp_attack_attempt":
+            if value and not previous:
+                snap = self.state.snapshot(now)
+                self._emit(EventResult(
+                    True,
+                    "pvp_attack_attempt",
+                    f"{str(detail or 'average').title()} Player attack touched another avatar.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={"tier": str(detail or "average"), "source": "local_attack_volume"},
+                ))
+            return
 
         if kind == "osc_probe":
             if previous != value:
@@ -571,6 +642,22 @@ class BridgeController:
             if pending_until and pending_until <= t:
                 setattr(self, pending_attr, 0.0)
                 self._resolve_action_bus(bus_name, t)
+        if self._help_item_bus_pending_until and self._help_item_bus_pending_until <= t:
+            self._help_item_bus_pending_until = 0.0
+            if self._help_item_bus_active:
+                action_id = sum((1 << bit) for bit, enabled in enumerate(self._help_item_bus_bits) if enabled)
+                if action_id > 0:
+                    self.telemetry["helpful_item_received_type"] = action_id
+                    snap = self.state.snapshot(t)
+                    self._emit(EventResult(
+                        True,
+                        "helpful_item_received",
+                        f"Helpful item ID {action_id} touched this avatar's Head.",
+                        hp_before=snap["current_hp"],
+                        hp_after=snap["current_hp"],
+                        maximum_hp=snap["maximum_hp"],
+                        metadata={"item_id": action_id, "source": "helpful_item_head_bus"},
+                    ))
         while self._pending_hits and self._pending_hits[0][0] <= t:
             _, _, pending = heapq.heappop(self._pending_hits)
             block_cfg = self.config["combat"]["block"]

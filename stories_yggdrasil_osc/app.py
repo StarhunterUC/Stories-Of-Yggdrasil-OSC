@@ -25,6 +25,11 @@ from .combat_authority import (
 )
 from .config import get_app_data_dir, get_log_path, load_config, load_runtime_state, save_config, save_runtime_state
 from .controller import BridgeController
+from .helpful_items import (
+    ITEM_RESULT_IDLE,
+    is_physical_helpful_item,
+    helpful_item_name,
+)
 from .models import EventResult
 from .osc_service import OSCEvent, OSCService
 from .sam_client import SamClient, SamEvent
@@ -855,6 +860,64 @@ class StoriesOSCApp:
         self.controller.commit_result(result)
         self._send_parameter(self.config["parameters"]["combat_enabled"], bool(self.state.combat_enabled))
 
+    def _pulse_helpful_item_result(self, parameter_key: str, result_code: int, duration_ms: int = 900) -> None:
+        try:
+            code = max(0, int(result_code or 0))
+        except (TypeError, ValueError):
+            code = 0
+        parameter = str(self.config.get("parameters", {}).get(parameter_key) or "").strip()
+        if not parameter or code <= 0:
+            return
+        self._send_parameter(parameter, code)
+        self.root.after(
+            max(120, int(duration_ms)),
+            lambda p=parameter: self._send_parameter(p, ITEM_RESULT_IDLE),
+        )
+
+    def _submit_helpful_item_touch(self, result: EventResult) -> bool:
+        item_id = int(result.metadata.get("item_id", 0) or 0)
+        if not is_physical_helpful_item(item_id):
+            return False
+        if self.avatar_compatibility.protocol != 21:
+            self._append_activity(
+                "ITEM HOLD",
+                f"{helpful_item_name(item_id) or 'Helpful item'} requires Unity OSC Protocol 21 / TB18.",
+            )
+            self._pulse_helpful_item_result("helpful_item_use_result", 3)
+            return True
+
+        scope = str(result.metadata.get("scope") or "").strip().lower()
+        event_id = new_event_id("helpitem")
+        if scope == "self":
+            self.sam_client.helpful_item_self_use(item_id, event_id)
+            self._append_activity(
+                "ITEM",
+                f"Submitted self-use of {helpful_item_name(item_id) or ('item ' + str(item_id))} as {event_id}.",
+            )
+            return True
+        if scope == "other":
+            self.sam_client.helpful_item_attempt(item_id, event_id)
+            self._append_activity(
+                "ITEM",
+                f"Registered physical {helpful_item_name(item_id) or ('item ' + str(item_id))} attempt on another Head as {event_id}.",
+            )
+            return True
+        return False
+
+    def _submit_helpful_item_receipt(self, result: EventResult) -> bool:
+        item_id = int(result.metadata.get("item_id", 0) or 0)
+        if not is_physical_helpful_item(item_id):
+            return False
+        if self.avatar_compatibility.protocol != 21:
+            return True
+        event_id = new_event_id("helpitemrecv")
+        self.sam_client.helpful_item_receipt(item_id, event_id)
+        self._append_activity(
+            "ITEM",
+            f"Reported incoming {helpful_item_name(item_id) or ('item ' + str(item_id))} Head contact as {event_id}.",
+        )
+        return True
+
     def _on_result(self, result: EventResult) -> None:
         category = "EVENT" if result.accepted else "IGNORED"
         if result.event in {"damage", "dot_damage"}: category = "DAMAGE"
@@ -877,6 +940,15 @@ class StoriesOSCApp:
             self._append_activity(category, result.message)
         if result.accepted and result.event == "hit_contact":
             if self._submit_authoritative_contact(result):
+                return
+        if result.accepted and result.event == "helpful_item_touch":
+            if self._submit_helpful_item_touch(result):
+                return
+        if result.accepted and result.event == "helpful_item_received":
+            if self._submit_helpful_item_receipt(result):
+                return
+        if result.accepted and result.event == "pvp_attack_attempt":
+            if self._submit_pvp_attack_attempt(result):
                 return
         if result.accepted and result.event in {
             "damage", "dot_damage", "healing", "revive", "set_hp", "external_health_update",
@@ -910,9 +982,23 @@ class StoriesOSCApp:
                 ("item_type", "item_contact"),
             ):
                 action_id = int(result.metadata.get(field, 0) or 0)
-                if action_id > 0:
-                    self._schedule_sam_sync(event_name, immediate=True, vrc_trigger=True)
+                if action_id <= 0:
+                    continue
+                if field == "item_use_type" and is_physical_helpful_item(action_id):
+                    # Protocol 21: selector/menu intent equips/arms the prop only.
+                    # Inventory consumption waits for a physical Head interaction.
+                    self._append_activity(
+                        "ITEM",
+                        f"Armed physical {helpful_item_name(action_id) or ('item ' + str(action_id))}; waiting for Head contact.",
+                    )
                     break
+                if field == "item_type" and is_physical_helpful_item(action_id):
+                    # TB18 uses the dedicated Head-only helpful-item bus. Ignore the
+                    # legacy generic Item bus for these IDs so the target cannot be
+                    # healed twice and the actor inventory cannot be bypassed.
+                    break
+                self._schedule_sam_sync(event_name, immediate=True, vrc_trigger=True)
+                break
 
     def _combat_endpoint_ready(self) -> bool:
         authority = self.config.get("combat_authority", {})
@@ -932,10 +1018,25 @@ class StoriesOSCApp:
         else:
             self.controller.telemetry["damage_source_enemy"] = False
 
-    def _submit_authoritative_contact(self, result: EventResult) -> bool:
-        """Route an incoming Player-target Contact to API v0.8.18.
+    def _submit_pvp_attack_attempt(self, result: EventResult) -> bool:
+        if self.avatar_compatibility.protocol != 21:
+            return False
+        tier = str(result.metadata.get("tier") or "average").strip().lower()
+        if tier not in {"weak", "average", "strong", "critical"}:
+            tier = "average"
+        event_id = new_event_id("pvpattempt")
+        self.sam_client.pvp_attack_attempt(tier, event_id)
+        self._append_activity(
+            "COMBAT",
+            f"{tier.title()} Player attack touched another avatar — resolving source identity as {event_id}.",
+        )
+        return True
 
-        NPC Mode remains on the existing verified target-reported path because
+    def _submit_authoritative_contact(self, result: EventResult) -> bool:
+        """Route an incoming Player-target Contact to Sam.py combat authority.
+
+        Protocol 21 canonical Player Contacts use the authenticated attempt /
+        receipt handshake. NPC Mode remains on the existing verified target-reported path because
         the v0.8.18 Player→NPC endpoint is attacker-reported.  Replacing that
         path here would make current NPC receivers unable to identify the real
         attacker and would be a regression.
@@ -965,6 +1066,36 @@ class StoriesOSCApp:
         # reclassified as an NPC merely because a PvP identity was not selected.
         contact_source = str(result.metadata.get("source") or "").strip().casefold()
         canonical_soy_contact = contact_source == "direct" and not external_damage_source
+        # Protocol 21: canonical Player-side Stories Contacts no longer require
+        # the manual PvP Source selector. The target submits an authenticated
+        # hit receipt; Sam.py pairs it with exactly one attacker-side attempt.
+        avatar_protocol = int(getattr(getattr(self, "avatar_compatibility", None), "protocol", 20) or 20)
+        if (
+            avatar_protocol == 21
+            and canonical_soy_contact
+            and not source_enemy
+        ):
+            tier = str(result.metadata.get("hit_type") or "average").strip().lower()
+            if tier not in {"weak", "average", "strong", "critical"}:
+                tier = "average"
+            event_id = new_event_id("pvpreceipt")
+            self._consume_hit_telemetry()
+            self.combat_pending_events[event_id] = {
+                "submitted_at": time.monotonic(),
+                "tier": tier,
+                "metadata": {
+                    "source_mode": "protocol21_handshake",
+                    "target_linked": True,
+                },
+                "payload": {"event_id": event_id, "tier": tier},
+            }
+            self.sam_client.pvp_hit_receipt(tier, event_id)
+            self._append_activity(
+                "COMBAT",
+                f"{tier.title()} Player Contact received — resolving source identity as {event_id}.",
+            )
+            return True
+
         if (
             not source_enemy
             and not canonical_soy_contact
@@ -1209,6 +1340,15 @@ class StoriesOSCApp:
 
     def _handle_sam_event(self, event: SamEvent) -> None:
         if not event.ok:
+            if event.kind == "pvp_handshake":
+                self._append_activity("COMBAT HOLD", event.message)
+                self.sam_status_label.configure(text=f"PvP identity hold: {event.message}", foreground=THEME["yellow"])
+                return
+            if event.kind == "helpful_item":
+                self._append_activity("ITEM ERROR", event.message)
+                self._pulse_helpful_item_result("helpful_item_use_result", 6)
+                self.sam_status_label.configure(text=f"Helpful-item error: {event.message}", foreground=THEME["yellow"])
+                return
             if event.kind == "combat_event":
                 event_id = str(event.data.get("event_id") or "").strip() if isinstance(event.data, dict) else ""
                 if event_id:
@@ -1260,6 +1400,38 @@ class StoriesOSCApp:
             return
         if event.kind == "combat_event":
             self._handle_combat_event_result(event.data)
+            return
+        if event.kind == "pvp_handshake":
+            pending = bool(event.data.get("pending", False))
+            applied = bool(event.data.get("applied", False))
+            if pending:
+                return
+            damage = int(event.data.get("damage", 0) or 0)
+            attacker = str(event.data.get("attacker_name") or event.data.get("attacker_character") or "Player")
+            target = str(event.data.get("target_name") or event.data.get("target_character") or "target")
+            message = str(event.data.get("message") or event.message or "")
+            if applied and damage > 0:
+                self._append_activity("COMBAT", message or f"{attacker} hit {target} for {damage:,} damage.")
+                self.sam_client.pull()
+            elif not applied:
+                self._append_activity("COMBAT HOLD", message or "PvP Contact could not be attributed safely.")
+            return
+        if event.kind == "helpful_item":
+            result_code = int(event.data.get("result_code", 0) or 0)
+            item_name = str(event.data.get("item_name") or "")
+            applied = bool(event.data.get("applied", False))
+            pending = bool(event.data.get("pending", False))
+            if event.source == "helpful_item_receipt":
+                if result_code > 0:
+                    self._pulse_helpful_item_result("helpful_item_receive_result", result_code)
+            elif result_code > 0:
+                self._pulse_helpful_item_result("helpful_item_use_result", result_code)
+            if not pending:
+                self._append_activity(
+                    "ITEM" if applied else "ITEM INFO",
+                    str(event.data.get("message") or event.message or (item_name + " processed.")),
+                )
+                self.sam_client.pull()
             return
         if event.kind == "npc_catalog":
             rows = event.data.get("enemies") if isinstance(event.data.get("enemies"), list) else []
