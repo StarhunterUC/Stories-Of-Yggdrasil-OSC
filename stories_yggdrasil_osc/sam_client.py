@@ -135,6 +135,18 @@ class SamClient:
         # applying damage twice.
         self._commands.put(("combat_event", dict(payload)))
 
+    def pvp_attack_attempt(self, tier: str, event_id: str) -> None:
+        self._commands.put(("pvp_attack_attempt", {
+            "tier": str(tier or "average"),
+            "event_id": str(event_id),
+        }))
+
+    def pvp_hit_receipt(self, tier: str, event_id: str) -> None:
+        self._commands.put(("pvp_hit_receipt", {
+            "tier": str(tier or "average"),
+            "event_id": str(event_id),
+        }))
+
     def helpful_item_self_use(self, item_id: int, event_id: str) -> None:
         self._commands.put(("helpful_item_self", {
             "item_id": int(item_id),
@@ -525,6 +537,36 @@ class SamClient:
                 str(result.get("message") or "OSC combat event processed."),
                 result,
                 source="combat_event",
+            )
+        elif command == "pvp_attack_attempt":
+            result = self._request(
+                "POST",
+                "/pvp/attempt",
+                payload=payload,
+                use_auth=True,
+                timeout=5.0,
+            )
+            self._emit(
+                "pvp_handshake",
+                True,
+                str(result.get("message") or "PvP attack attempt registered."),
+                result,
+                source="pvp_attack_attempt",
+            )
+        elif command == "pvp_hit_receipt":
+            result = self._request(
+                "POST",
+                "/pvp/receipt",
+                payload=payload,
+                use_auth=True,
+                timeout=5.0,
+            )
+            self._emit(
+                "pvp_handshake",
+                True,
+                str(result.get("message") or "PvP hit receipt processed."),
+                result,
+                source="pvp_hit_receipt",
             )
         elif command == "helpful_item_self":
             result = self._request(
