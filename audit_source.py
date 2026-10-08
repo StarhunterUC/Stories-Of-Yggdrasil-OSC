@@ -88,6 +88,10 @@ required_markers = {
         '"/helpful-item/self"',
         '"/helpful-item/attempt"',
         '"/helpful-item/receipt"',
+        '"/pvp/attempt"',
+        '"/pvp/receipt"',
+        "def pvp_attack_attempt",
+        "def pvp_hit_receipt",
     ],
     "stories_yggdrasil_osc/avatar_compatibility.py": [
         "MIN_UNITY_PROTOCOL = 20",
@@ -109,6 +113,9 @@ required_markers = {
         "combat_catalog_activity_signature",
         "def _submit_helpful_item_touch",
         "def _submit_helpful_item_receipt",
+        "def _submit_pvp_attack_attempt",
+        "pvp_hit_receipt",
+        "protocol21_handshake",
         "is_physical_helpful_item",
     ],
     "stories_yggdrasil_osc/controller.py": [
@@ -119,6 +126,8 @@ required_markers = {
         '"helpful_item_received_type"',
         '"helpful_item_touch"',
         '"helpful_item_received"',
+        '"pvp_attack_attempt"',
+        '"SoY_PvPAttemptAverage"',
     ],
     "stories_yggdrasil_osc/helpful_items.py": [
         "HELPFUL_ITEM_ID_TO_NAME",
