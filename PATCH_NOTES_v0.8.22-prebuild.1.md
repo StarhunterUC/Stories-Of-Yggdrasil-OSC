@@ -13,6 +13,15 @@ This Test Build adds the Desktop half of TB18 physical item interactions.
 - Helpful physical IDs ignore the legacy generic incoming Item bus so effects cannot double-apply.
 - `SoY_ItemUseResult` and `SoY_ItemReceiveResult` return server result codes to the avatar for success/failure presentation.
 
+## Automatic Player-to-Player attribution
+
+- TB18 Attack volumes report local Weak/Average/Strong/Critical attacker-side touch attempts.
+- A canonical Player-side hit on the target submits an authenticated target receipt.
+- Sam.py pairs exactly one attacker attempt with exactly one target receipt inside the short identity window.
+- Actor stats are resolved against target defenses, armor, augments, and the normal DM gate by Sam.py.
+- Ambiguous simultaneous attackers fail closed instead of guessing.
+- Protocol 20 retains the existing manual/verified PvP Source fallback.
+
 ## Compatibility
 
 - Protocol 20 / TB17.5 remains supported for existing avatars.
@@ -22,5 +31,10 @@ This Test Build adds the Desktop half of TB18 physical item interactions.
 
 ## Server requirement
 
-The uploaded Sam.py/fight_system.py patch adds the authoritative item transaction helper. The restricted OSC API service must expose the three Protocol 21 handlers used by this Desktop build before end-to-end testing:
-`/helpful-item/self`, `/helpful-item/attempt`, and `/helpful-item/receipt`.
+The Sam.py v1.9.33 / Fight System v4.4.219 patch adds the authoritative Protocol 21 transaction broker and upgrades the restricted OSC API to v0.8.19. End-to-end testing requires these authenticated routes:
+
+- `/helpful-item/self`
+- `/helpful-item/attempt`
+- `/helpful-item/receipt`
+- `/pvp/attempt`
+- `/pvp/receipt`
