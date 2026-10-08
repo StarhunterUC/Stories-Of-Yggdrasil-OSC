@@ -947,6 +947,9 @@ class StoriesOSCApp:
         if result.accepted and result.event == "helpful_item_received":
             if self._submit_helpful_item_receipt(result):
                 return
+        if result.accepted and result.event == "pvp_attack_attempt":
+            if self._submit_pvp_attack_attempt(result):
+                return
         if result.accepted and result.event in {
             "damage", "dot_damage", "healing", "revive", "set_hp", "external_health_update",
             "status_applied", "status_expired", "statuses_cleared", "external_status_active",
@@ -1015,10 +1018,25 @@ class StoriesOSCApp:
         else:
             self.controller.telemetry["damage_source_enemy"] = False
 
-    def _submit_authoritative_contact(self, result: EventResult) -> bool:
-        """Route an incoming Player-target Contact to API v0.8.18.
+    def _submit_pvp_attack_attempt(self, result: EventResult) -> bool:
+        if self.avatar_compatibility.protocol != 21:
+            return False
+        tier = str(result.metadata.get("tier") or "average").strip().lower()
+        if tier not in {"weak", "average", "strong", "critical"}:
+            tier = "average"
+        event_id = new_event_id("pvpattempt")
+        self.sam_client.pvp_attack_attempt(tier, event_id)
+        self._append_activity(
+            "COMBAT",
+            f"{tier.title()} Player attack touched another avatar — resolving source identity as {event_id}.",
+        )
+        return True
 
-        NPC Mode remains on the existing verified target-reported path because
+    def _submit_authoritative_contact(self, result: EventResult) -> bool:
+        """Route an incoming Player-target Contact to Sam.py combat authority.
+
+        Protocol 21 canonical Player Contacts use the authenticated attempt /
+        receipt handshake. NPC Mode remains on the existing verified target-reported path because
         the v0.8.18 Player→NPC endpoint is attacker-reported.  Replacing that
         path here would make current NPC receivers unable to identify the real
         attacker and would be a regression.
@@ -1048,6 +1066,35 @@ class StoriesOSCApp:
         # reclassified as an NPC merely because a PvP identity was not selected.
         contact_source = str(result.metadata.get("source") or "").strip().casefold()
         canonical_soy_contact = contact_source == "direct" and not external_damage_source
+        # Protocol 21: canonical Player-side Stories Contacts no longer require
+        # the manual PvP Source selector. The target submits an authenticated
+        # hit receipt; Sam.py pairs it with exactly one attacker-side attempt.
+        if (
+            self.avatar_compatibility.protocol == 21
+            and canonical_soy_contact
+            and not source_enemy
+        ):
+            tier = str(result.metadata.get("hit_type") or "average").strip().lower()
+            if tier not in {"weak", "average", "strong", "critical"}:
+                tier = "average"
+            event_id = new_event_id("pvpreceipt")
+            self._consume_hit_telemetry()
+            self.combat_pending_events[event_id] = {
+                "submitted_at": time.monotonic(),
+                "tier": tier,
+                "metadata": {
+                    "source_mode": "protocol21_handshake",
+                    "target_linked": True,
+                },
+                "payload": {"event_id": event_id, "tier": tier},
+            }
+            self.sam_client.pvp_hit_receipt(tier, event_id)
+            self._append_activity(
+                "COMBAT",
+                f"{tier.title()} Player Contact received — resolving source identity as {event_id}.",
+            )
+            return True
+
         if (
             not source_enemy
             and not canonical_soy_contact
@@ -1292,6 +1339,10 @@ class StoriesOSCApp:
 
     def _handle_sam_event(self, event: SamEvent) -> None:
         if not event.ok:
+            if event.kind == "pvp_handshake":
+                self._append_activity("COMBAT HOLD", event.message)
+                self.sam_status_label.configure(text=f"PvP identity hold: {event.message}", foreground=THEME["yellow"])
+                return
             if event.kind == "helpful_item":
                 self._append_activity("ITEM ERROR", event.message)
                 self._pulse_helpful_item_result("helpful_item_use_result", 6)
@@ -1348,6 +1399,21 @@ class StoriesOSCApp:
             return
         if event.kind == "combat_event":
             self._handle_combat_event_result(event.data)
+            return
+        if event.kind == "pvp_handshake":
+            pending = bool(event.data.get("pending", False))
+            applied = bool(event.data.get("applied", False))
+            if pending:
+                return
+            damage = int(event.data.get("damage", 0) or 0)
+            attacker = str(event.data.get("attacker_name") or event.data.get("attacker_character") or "Player")
+            target = str(event.data.get("target_name") or event.data.get("target_character") or "target")
+            message = str(event.data.get("message") or event.message or "")
+            if applied and damage > 0:
+                self._append_activity("COMBAT", message or f"{attacker} hit {target} for {damage:,} damage.")
+                self.sam_client.pull()
+            elif not applied:
+                self._append_activity("COMBAT HOLD", message or "PvP Contact could not be attributed safely.")
             return
         if event.kind == "helpful_item":
             result_code = int(event.data.get("result_code", 0) or 0)
