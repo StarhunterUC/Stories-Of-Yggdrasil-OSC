@@ -167,6 +167,10 @@ class BridgeController:
             self.parameters.get("helpful_item_bit_5", "SoY_HelpItemBit5"): ("help_item_bus_bit", "5"),
             self.parameters.get("helpful_item_bit_6", "SoY_HelpItemBit6"): ("help_item_bus_bit", "6"),
             self.parameters.get("helpful_item_bit_7", "SoY_HelpItemBit7"): ("help_item_bus_bit", "7"),
+            self.parameters.get("pvp_attempt_weak", "SoY_PvPAttemptWeak"): ("pvp_attack_attempt", "weak"),
+            self.parameters.get("pvp_attempt_average", "SoY_PvPAttemptAverage"): ("pvp_attack_attempt", "average"),
+            self.parameters.get("pvp_attempt_strong", "SoY_PvPAttemptStrong"): ("pvp_attack_attempt", "strong"),
+            self.parameters.get("pvp_attempt_critical", "SoY_PvPAttemptCritical"): ("pvp_attack_attempt", "critical"),
             self.parameters.get("healing_source_enemy", "SoY_HealingSourceEnemy"): ("telemetry_bool", "healing_source_enemy"),
             self.parameters.get("damage_source_enemy", "SoY_DamageSourceEnemy"): ("telemetry_bool", "damage_source_enemy"),
             self.parameters.get("external_damage_source", "SoY_ExternalDamageSource"): ("telemetry_bool", "external_damage_source"),
@@ -269,6 +273,7 @@ class BridgeController:
             "technick_bus_active", "technick_bus_bit",
             "item_bus_active", "item_bus_bit",
             "help_item_bus_active", "help_item_bus_bit", "helpful_item_touch",
+            "pvp_attack_attempt",
         }
         if direct_entry is not None and direct_entry[0] in always_direct_kinds:
             self._handle_input(name, direct_entry, values[0], t, source="direct")
@@ -398,6 +403,20 @@ class BridgeController:
                     hp_after=snap["current_hp"],
                     maximum_hp=snap["maximum_hp"],
                     metadata={"scope": detail, "item_id": selected, "source": "helpful_item_head_contact"},
+                ))
+            return
+
+        if kind == "pvp_attack_attempt":
+            if value and not previous:
+                snap = self.state.snapshot(now)
+                self._emit(EventResult(
+                    True,
+                    "pvp_attack_attempt",
+                    f"{str(detail or 'average').title()} Player attack touched another avatar.",
+                    hp_before=snap["current_hp"],
+                    hp_after=snap["current_hp"],
+                    maximum_hp=snap["maximum_hp"],
+                    metadata={"tier": str(detail or "average"), "source": "local_attack_volume"},
                 ))
             return
 
