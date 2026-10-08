@@ -1069,8 +1069,9 @@ class StoriesOSCApp:
         # Protocol 21: canonical Player-side Stories Contacts no longer require
         # the manual PvP Source selector. The target submits an authenticated
         # hit receipt; Sam.py pairs it with exactly one attacker-side attempt.
+        avatar_protocol = int(getattr(getattr(self, "avatar_compatibility", None), "protocol", 20) or 20)
         if (
-            self.avatar_compatibility.protocol == 21
+            avatar_protocol == 21
             and canonical_soy_contact
             and not source_enemy
         ):
