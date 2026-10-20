@@ -134,6 +134,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "npc_favorites": [],
         "recent_npcs": [],
     },
+    "crash_reports": {
+        "allow_send": False,
+        "endpoint": "",
+    },
     "updates": {
         "github_repo": "StarhunterUC/Stories-Of-Yggdrasil-OSC",
         "check_on_start": True,

@@ -327,33 +327,73 @@ try {
         if ($waitCount -gt 240) { throw "Timed out waiting for the application to close." }
     }
 
-    Set-UpdateProgress 20 "Extracting the update…"
-    if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
-    New-Item -ItemType Directory -Path $staging | Out-Null
-    Expand-Archive -Path $archive -DestinationPath $staging -Force
-    $children = @(Get-ChildItem $staging)
-    if ($children.Count -eq 1 -and $children[0].PSIsContainer) { $sourcePath = $children[0].FullName }
-    else { $sourcePath = $staging }
-    $sourceExe = Join-Path $sourcePath "Stories Of Yggdrasil OSC.exe"
-    if (!(Test-Path $sourceExe)) { throw "The release archive does not contain Stories Of Yggdrasil OSC.exe." }
-
-    Set-UpdateProgress 50 "Installing the new version…"
-    New-Item -ItemType Directory -Force -Path $install | Out-Null
-    & robocopy $sourcePath $install /E /COPY:DAT /DCOPY:DAT /R:5 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-    $copyCode = $LASTEXITCODE
-    if ($copyCode -gt 7) { throw "File installation failed with Robocopy code $copyCode." }
-
-    Set-UpdateProgress 82 "Verifying the installed files…"
-    $installedExe = Join-Path $install "Stories Of Yggdrasil OSC.exe"
-    if (!(Test-Path $installedExe)) { throw "The updated executable was not installed." }
-    $installedVersionFile = Join-Path $install "version.json"
-    $installedVersion = ""
-    if (Test-Path $installedVersionFile) {
-        try { $installedVersion = (Get-Content $installedVersionFile -Raw | ConvertFrom-Json).version } catch { }
+    # Heavy operations run in a separate PowerShell job. The UI thread stays
+    # responsive while the job writes phase/status updates to disk.
+    $phasePath = Join-Path (Split-Path $logPath -Parent) "update_phase.json"
+    $work = Start-Job -ArgumentList $archive, $install, $expectedVersion, $staging, $phasePath -ScriptBlock {
+        param($jobArchive, $jobInstall, $jobVersion, $jobStaging, $jobPhasePath)
+        $ErrorActionPreference = "Stop"
+        function Phase($name, $percent) {
+            @{ phase = $name; percent = $percent; utc = (Get-Date).ToUniversalTime().ToString("o") } |
+                ConvertTo-Json | Set-Content $jobPhasePath -Encoding UTF8
+        }
+        Phase "extract" 20
+        if (Test-Path $jobStaging) { Remove-Item $jobStaging -Recurse -Force }
+        New-Item -ItemType Directory -Path $jobStaging | Out-Null
+        Expand-Archive -Path $jobArchive -DestinationPath $jobStaging -Force
+        $children = @(Get-ChildItem $jobStaging)
+        if ($children.Count -eq 1 -and $children[0].PSIsContainer) { $sourcePath = $children[0].FullName }
+        else { $sourcePath = $jobStaging }
+        $sourceExe = Join-Path $sourcePath "Stories Of Yggdrasil OSC.exe"
+        if (!(Test-Path $sourceExe)) { throw "Missing updated executable." }
+        Phase "copy" 50
+        New-Item -ItemType Directory -Force -Path $jobInstall | Out-Null
+        & robocopy $sourcePath $jobInstall /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+        $copyCode = $LASTEXITCODE
+        if ($copyCode -gt 7) { throw "File copy failed (Robocopy exit code $copyCode)." }
+        Phase "verify" 82
+        $installedExe = Join-Path $jobInstall "Stories Of Yggdrasil OSC.exe"
+        if (!(Test-Path $installedExe)) { throw "Updated executable missing after copy." }
+        $installedVersionFile = Join-Path $jobInstall "version.json"
+        if (!(Test-Path $installedVersionFile)) { throw "Installed version metadata missing." }
+        $installedVersion = (Get-Content $installedVersionFile -Raw | ConvertFrom-Json).version
+        if ($installedVersion -ne $jobVersion) { throw "Installed version does not match expected version." }
+        Phase "restart" 92
+        return $installedExe
     }
-    if ($expectedVersion -and $installedVersion -and $installedVersion -ne $expectedVersion) {
-        throw "Installed version $installedVersion does not match expected version $expectedVersion."
+    $lastPhase = ""
+    $stageStart = Get-Date
+    $currentPhase = "extract"
+    while ($work.State -in @("NotStarted", "Running")) {
+        Start-Sleep -Milliseconds 200
+        if (Test-Path $phasePath) {
+            try {
+                $current = Get-Content $phasePath -Raw | ConvertFrom-Json
+                if ($current.phase -ne $lastPhase) {
+                    $lastPhase = $current.phase
+                    $currentPhase = $lastPhase
+                    $stageStart = Get-Date
+                    Write-UpdateLog "Installer phase: $currentPhase"
+                }
+                $display = @{ extract = "Extracting update"; copy = "Copying updated files"; verify = "Verifying installation"; restart = "Preparing restart" }
+                Set-UpdateProgress ([int]$current.percent) "$($display[$currentPhase])…"
+            } catch { }
+        }
+        if (((Get-Date) - $stageStart).TotalSeconds -gt 180) {
+            Stop-Job $work -ErrorAction SilentlyContinue
+            # An OS-level hung child may require manual cleanup; preserve diagnostic phase.
+            throw "Installer stage stalled: $currentPhase"
+        }
+        [System.Windows.Forms.Application]::DoEvents()
+        $work = Get-Job -Id $work.Id
     }
+    if ($work.State -ne "Completed") {
+        $jobError = ($work.ChildJobs[0].JobStateInfo.Reason | Out-String).Trim()
+        throw "Installer worker failed in phase $currentPhase. $jobError"
+    }
+    $installedExe = Receive-Job $work -ErrorAction Stop | Select-Object -Last 1
+    Remove-Job $work -Force -ErrorAction SilentlyContinue
+    if (!(Test-Path $installedExe)) { throw "Installer worker returned invalid executable." }
 
     @{ ok = $true; version = $installedVersion; installed_at = (Get-Date).ToString("o") } |
         ConvertTo-Json | Set-Content -Path $resultPath -Encoding UTF8
@@ -367,7 +407,8 @@ try {
 catch {
     $message = $_.Exception.Message
     Write-UpdateLog "Install failed: $message"
-    @{ ok = $false; error = $message; failed_at = (Get-Date).ToString("o") } |
+    $safePhase = if ($currentPhase -in @("extract","copy","verify","restart")) { $currentPhase } else { "unknown" }
+    @{ ok = $false; error = $message; phase = $safePhase; version = $expectedVersion; failed_at = (Get-Date).ToString("o") } |
         ConvertTo-Json | Set-Content -Path $resultPath -Encoding UTF8
     Set-UpdateProgress 100 "Update failed."
     [System.Windows.Forms.MessageBox]::Show(

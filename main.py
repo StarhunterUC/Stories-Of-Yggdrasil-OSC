@@ -12,6 +12,7 @@ from stories_yggdrasil_osc.tls_runtime import configure_tls_runtime
 configure_tls_runtime()
 
 from stories_yggdrasil_osc.app_v0814 import run
+from stories_yggdrasil_osc.crash_reporting import watchdog_main, record_exception, save_report, make_report
 
 _MUTEX_NAME = r"Local\StoriesOfYggdrasilOSCDesktop"
 _ERROR_ALREADY_EXISTS = 183
@@ -64,13 +65,38 @@ def _release_single_instance(instance: Any | None) -> None:
         pass
 
 
+def _capture_previous_install_error() -> None:
+    # Import only a short allowlisted outcome. Never include installer log text.
+    import json
+    from stories_yggdrasil_osc.config import get_app_data_dir
+    path = get_app_data_dir() / "update_result.json"
+    if not path.exists():
+        return
+    try:
+        result = json.loads(path.read_text(encoding="utf-8-sig"))
+        if result.get("ok") is False:
+            from stories_yggdrasil_osc import __version__
+            save_report(make_report("installer_error", __version__, phase=result.get("phase", "unknown")))
+        path.unlink(missing_ok=True)
+    except (OSError, ValueError, TypeError):
+        pass
+
+
 def main() -> int:
+    if len(sys.argv) == 5 and sys.argv[1] == "--soy-watchdog":
+        return watchdog_main(int(sys.argv[2]), sys.argv[3], sys.argv[4])
+    _capture_previous_install_error()
     instance = _acquire_single_instance()
     if instance is None:
         return 0
     try:
-        run()
-        return 0
+        try:
+            run()
+            return 0
+        except Exception as exc:
+            from stories_yggdrasil_osc import __version__
+            record_exception(exc, __version__)
+            raise
     finally:
         _release_single_instance(instance)
 

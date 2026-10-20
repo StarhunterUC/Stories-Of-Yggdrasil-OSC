@@ -19,6 +19,7 @@ from .config import (
     save_runtime_state,
 )
 from .tls_runtime import tls_diagnostics
+from . import crash_reporting
 from .winhttp_transport import available as winhttp_available
 from .qol import (
     action_key,
@@ -838,7 +839,98 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             ttk.Button(card, text="Create Support Bundle", command=self.create_support_bundle).grid(row=3, column=0, sticky="w", padx=20, pady=(8, 16))
             ttk.Label(card, text="Window position, page, filters, favorites, and selections are saved automatically.", style="Muted.Card.TLabel", wraplength=680, justify="left").grid(row=3, column=1, columnspan=3, sticky="w", padx=(0, 20), pady=(8, 16))
             card.columnconfigure(3, weight=1)
+        if body is not None:
+            card = self._card(body)
+            card.pack(fill=tk.X, pady=10)
+            ttk.Label(card, text="Privacy & Crash Reports", style="CardTitle.TLabel").pack(anchor="w", padx=20, pady=(16, 8))
+            self.crash_share_var = tk.BooleanVar(value=bool(self.config.get("crash_reports", {}).get("allow_send", False)))
+            ttk.Checkbutton(card, text="Permit manual crash report submission (off by default)",
+                            variable=self.crash_share_var).pack(anchor="w", padx=20, pady=5)
+            ttk.Label(card, text="Reports are stored locally. No automatic uploads. Review each report before sending. "
+                             "Only anonymous, approved diagnostics are collected.",
+                      style="Muted.Card.TLabel", wraplength=680).pack(anchor="w", padx=20, pady=4)
+            ttk.Button(card, text="Review Local Crash Reports", command=self.open_crash_reports).pack(
+                anchor="w", padx=20, pady=(7, 16))
         return page
+
+    def open_crash_reports(self) -> None:
+        paths = crash_reporting.pending_reports()
+        if not paths:
+            messagebox.showinfo("Crash Reports", "No pending crash reports were found.")
+            return
+        window = tk.Toplevel(self.root)
+        window.title("Privacy Review — Crash Reports")
+        window.geometry("790x500")
+        window.transient(self.root)
+        outer = ttk.Frame(window, padding=12)
+        outer.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(outer, text="Select and review exactly what would be shared. No raw logs or account data.",
+                  wraplength=740).pack(anchor="w", pady=(0, 8))
+        selector = tk.Listbox(outer, height=5, exportselection=False)
+        selector.pack(fill=tk.X)
+        for path in paths:
+            try:
+                report = crash_reporting.load_report(path)
+                selector.insert(tk.END, f"{report.get('created_utc', '')} · {report.get('kind')} · {report.get('phase')}")
+            except (OSError, ValueError):
+                selector.insert(tk.END, "Unreadable local report")
+        detail = tk.Text(outer, wrap="none", height=13)
+        detail.pack(fill=tk.BOTH, expand=True, pady=8)
+        actions = ttk.Frame(outer)
+        actions.pack(fill=tk.X)
+        current = [None]
+
+        def show(event=None):
+            selected = selector.curselection()
+            detail.configure(state=tk.NORMAL)
+            detail.delete("1.0", tk.END)
+            current[0] = None
+            if selected:
+                try:
+                    path = paths[selected[0]]
+                    data = crash_reporting.load_report(path)
+                    detail.insert("1.0", __import__("json").dumps(data, indent=2))
+                    current[0] = path
+                except (OSError, ValueError) as exc:
+                    detail.insert("1.0", "This local report cannot be read.")
+            detail.configure(state=tk.DISABLED)
+
+        def copy_selected():
+            if current[0]:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(detail.get("1.0", tk.END).strip())
+
+        def delete_selected():
+            if current[0] and messagebox.askyesno("Delete Report", "Permanently delete this local crash report?", parent=window):
+                current[0].unlink(missing_ok=True)
+                window.destroy()
+                self.open_crash_reports()
+
+        def submit_selected():
+            consent = bool(self.crash_share_var.get()) if hasattr(self, "crash_share_var") else False
+            endpoint = str(self.config.get("crash_reports", {}).get("endpoint") or "")
+            if not consent or not endpoint:
+                messagebox.showwarning("Sharing unavailable",
+                                       "Opt in under Privacy settings and configure the first-party receiver. "
+                                       "You may copy the report for manual sharing.", parent=window)
+                return
+            if current[0] and messagebox.askyesno("Send Report", "Send ONLY the visible anonymized report to the SoY crash receiver?",
+                                                  parent=window):
+                try:
+                    crash_reporting.send_report(current[0], endpoint, consent=True)
+                except Exception:
+                    messagebox.showerror("Report Not Sent", "Secure crash report delivery failed. "
+                                         "The report remains saved locally.", parent=window)
+                    return
+                messagebox.showinfo("Sent", "Anonymous crash report accepted by the receiver.", parent=window)
+                window.destroy()
+
+        selector.bind("<<ListboxSelect>>", show)
+        ttk.Button(actions, text="Copy Report", command=copy_selected).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(actions, text="Delete Report", command=delete_selected).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(actions, text="Send Reviewed Report", command=submit_selected).pack(side=tk.LEFT)
+        selector.selection_set(0)
+        show()
 
     def save_settings(self) -> None:
         ui = self._ui()
@@ -846,6 +938,8 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             ui["scale"] = clamp_ui_scale(self.ui_scale_var.get())
             ui["reduced_motion"] = bool(self.reduced_motion_var.get())
             ui["compact_mode"] = bool(self.compact_mode_var.get())
+        if hasattr(self, 'crash_share_var'):
+            self.config.setdefault('crash_reports', {})['allow_send'] = bool(self.crash_share_var.get())
         self._capture_ui_state()
         super().save_settings()
         try:
@@ -1028,5 +1122,12 @@ class StoriesOSCAppV0814(StoriesOSCApp):
 
 def run() -> None:
     root = tk.Tk()
-    StoriesOSCAppV0814(root)
-    root.mainloop()
+    monitor = crash_reporting.start_runtime_monitor(root, __version__)
+    def tk_error(exc_type, exc, tb):
+        crash_reporting.record_exception(exc, __version__)
+    root.report_callback_exception = tk_error
+    try:
+        StoriesOSCAppV0814(root)
+        root.mainloop()
+    finally:
+        monitor.close()

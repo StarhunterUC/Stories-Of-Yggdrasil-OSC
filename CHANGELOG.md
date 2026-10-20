@@ -1,3 +1,9 @@
+# v0.8.22-prebuild.2 — Crash reporting (privacy-first) and installer stall diagnostics
+
+- Local crash and hang reports with strict diagnostic field allowlisting, independent UI watchdog, manual review and opt-in reporting controls.
+- Responsive installer progress and timed stage failure detection; no changes to combat/Protocol 21.
+- Crash report transport requires separate first-party server receiver deployment.
+
 # Changelog
 
 ## v0.8.21 — Protocol 20 / TB17 Public Release
