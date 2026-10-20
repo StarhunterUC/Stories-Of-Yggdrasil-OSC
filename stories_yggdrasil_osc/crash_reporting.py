@@ -51,9 +51,16 @@ def _stack(exc_tb: Any) -> list[str]:
         basename = Path(frame.filename).name.lower()
         # File basenames alone can be personal; only known internal source
         # locations are allowed. Everything outside the app is "external".
-        module = basename if ("/stories_yggdrasil_osc/" in path or
-                               basename == "main.py" and path.endswith("/main.py")) else "external"
-        frames.append(module + ":" + _safe_symbol(frame.name))
+        trusted_files = {"app.py", "app_v0814.py", "config.py", "controller.py",
+                         "update_manager.py", "crash_reporting.py", "sam_client.py",
+                         "osc_service.py", "combat.py", "combat_authority.py",
+                         "avatar_compatibility.py", "qol.py", "models.py",
+                         "telemetry.py", "tls_runtime.py", "winhttp_transport.py",
+                         "helpful_items.py", "vrchat_config.py"}
+        trusted = "/stories_yggdrasil_osc/" in path.replace("\\", "/") and basename in trusted_files
+        module = basename if trusted else "external"
+        function = _safe_symbol(frame.name) if trusted else "unknown"
+        frames.append(module + ":" + function)
     return frames
 
 
@@ -94,7 +101,7 @@ def save_report(report: dict[str, Any]) -> Path:
     clean["version"] = _safe_version(clean.get("version"))
     clean["exception_type"] = _safe_symbol(clean["exception_type"]) if "exception_type" in clean else None
     clean["stack"] = [x for x in clean.get("stack", []) if isinstance(x, str) and
-                      re.fullmatch(r"(?:[A-Za-z0-9_]+\.py|external):[A-Za-z_][A-Za-z0-9_]{0,63}", x)][:12]
+                      re.fullmatch(r"(?:app(?:_v0814)?\.py|config\.py|controller\.py|update_manager\.py|crash_reporting\.py|sam_client\.py|osc_service\.py|combat\.py|combat_authority\.py|avatar_compatibility\.py|qol\.py|models\.py|telemetry\.py|tls_runtime\.py|winhttp_transport\.py|helpful_items\.py|vrchat_config\.py):[A-Za-z_][A-Za-z0-9_]{0,63}|external:unknown", x)][:12]
     clean["os"] = "Windows" if clean.get("os") == "Windows" else "Other"
     clean["report_id"] = str(clean.get("report_id") or "")[:32]
     if not re.fullmatch(r"[0-9a-f]{32}", clean["report_id"]):
@@ -142,9 +149,16 @@ def load_report(path: Path) -> dict[str, Any]:
     safe["os"] = "Windows" if safe.get("os") == "Windows" else "Other"
     safe["exception_type"] = _safe_symbol(safe["exception_type"]) if "exception_type" in safe else None
     safe["stack"] = [x for x in safe.get("stack", []) if isinstance(x, str) and
-                     re.fullmatch(r"(?:[A-Za-z0-9_]+\.py|external):[A-Za-z_][A-Za-z0-9_]{0,63}", x)][:12]
+                     re.fullmatch(r"(?:app(?:_v0814)?\.py|config\.py|controller\.py|update_manager\.py|crash_reporting\.py|sam_client\.py|osc_service\.py|combat\.py|combat_authority\.py|avatar_compatibility\.py|qol\.py|models\.py|telemetry\.py|tls_runtime\.py|winhttp_transport\.py|helpful_items\.py|vrchat_config\.py):[A-Za-z_][A-Za-z0-9_]{0,63}|external:unknown", x)][:12]
     if not re.fullmatch(r"[0-9a-f]{32}", str(safe.get("report_id", ""))):
         raise ValueError("Invalid report ID")
+    try:
+        timestamp = datetime.fromisoformat(str(safe.get("created_utc", "")).replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            raise ValueError("Report timestamp missing timezone")
+        safe["created_utc"] = timestamp.astimezone(timezone.utc).isoformat(timespec="seconds")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid report timestamp") from exc
     if safe.get("exception_type") is None:
         safe.pop("exception_type", None)
     if not safe["stack"]:
@@ -173,7 +187,10 @@ def send_report(path: Path, endpoint: str, *, consent: bool) -> None:
                                  headers={"Content-Type": "application/json",
                                           "User-Agent": "StoriesOSC-CrashReporter"},
                                  method="POST")
-    with _NoRedirect().open(req, timeout=8) as response:
+    from .tls_runtime import get_ssl_context
+    opener = urllib.request.build_opener(
+        _NoRedirect(), urllib.request.HTTPSHandler(context=get_ssl_context()))
+    with opener.open(req, timeout=8) as response:
         if response.status not in (200, 201, 202, 204):
             raise RuntimeError("Crash receiver did not accept the report")
     path.unlink(missing_ok=True)
