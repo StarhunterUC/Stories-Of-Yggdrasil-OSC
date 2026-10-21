@@ -304,6 +304,8 @@ $form.Controls.Add($label)
 $form.Controls.Add($bar)
 $form.Show()
 [System.Windows.Forms.Application]::DoEvents()
+$installerLock = [System.Threading.Mutex]::new($false, "Local\StoriesOSC_Updater")
+$lockAcquired = $false
 
 function Set-UpdateProgress([int]$value, [string]$text) {
     $bar.Value = [Math]::Max(0, [Math]::Min(100, $value))
@@ -318,6 +320,15 @@ function Write-UpdateLog([string]$text) {
 }
 
 try {
+    try {
+        $lockAcquired = $installerLock.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+        $lockAcquired = $true
+    }
+    if (-not $lockAcquired) {
+        $form.Close()
+        exit 3
+    }
     New-Item -ItemType Directory -Force -Path (Split-Path $logPath -Parent) | Out-Null
     Write-UpdateLog "Installer started. Target=$install Expected=$expectedVersion"
     $waitCount = 0
@@ -329,8 +340,9 @@ try {
     }
 
     $phasePath = Join-Path (Split-Path $logPath -Parent) "update_phase.json"
-    $workerResult = Join-Path (Split-Path $logPath -Parent) ("update_worker_result_" + $pidToWait + ".json")
-    $workerScript = Join-Path $env:TEMP ("StoriesOSC_worker_" + $pidToWait + ".ps1")
+    $attemptId = [guid]::NewGuid().ToString("N")
+    $workerResult = Join-Path (Split-Path $logPath -Parent) ("update_worker_result_" + $attemptId + ".json")
+    $workerScript = Join-Path $env:TEMP ("StoriesOSC_worker_" + $attemptId + ".ps1")
     # This must run before the worker, or an old 92% phase can be shown.
     Remove-Item -LiteralPath $phasePath, $workerResult, $resultPath -Force -ErrorAction SilentlyContinue
     $workerCode = @'
@@ -338,20 +350,87 @@ $ErrorActionPreference = "Stop"
 $archive = '__ARCHIVE__'
 $install = '__INSTALL__'
 $expected = '__VERSION__'
-$stageDir = Join-Path $env:TEMP "StoriesOSC_Staging___PID__"
+$stageDir = Join-Path $env:TEMP ("StoriesOSC_Staging_" + [guid]::NewGuid().ToString("N"))
 $phasePath = '__PHASEFILE__'
 $outcomePath = '__OUTCOMEFILE__'
-function Progress([string]$stage, [int]$percent) {
+function Progress([string]$stage, [int]$percent, [int]$fileIndex = 0, [int]$fileTotal = 0, [long]$bytes = 0) {
+    # Atomic checkpoints, with no filenames or personal paths in the status.
     $tempFile = $phasePath + ".tmp"
-    @{ phase = $stage; percent = $percent; utc = (Get-Date).ToUniversalTime().ToString("o") } |
+    @{ phase = $stage; percent = $percent; file_index = $fileIndex;
+       file_total = $fileTotal; bytes_extracted = $bytes;
+       utc = (Get-Date).ToUniversalTime().ToString("o") } |
       ConvertTo-Json | Set-Content -LiteralPath $tempFile -Encoding UTF8
     Move-Item -LiteralPath $tempFile -Destination $phasePath -Force
 }
 try {
     Progress "extract" 20
-    if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
-    Expand-Archive -LiteralPath $archive -DestinationPath $stageDir -Force
+    # Expand-Archive can block without emitting progress on Windows PowerShell.
+    # Instead stream each ZIP entry via .NET, with periodic checkpoint updates.
+    Add-Type -AssemblyName System.IO.Compression -ErrorAction Stop
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+    [System.IO.Directory]::CreateDirectory($stageDir) | Out-Null
+    $root = [System.IO.Path]::GetFullPath($stageDir).TrimEnd([char]'\') + '\'
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+    try {
+        $entries = $zip.Entries
+        if ($entries.Count -gt 12000) { throw "Release contains too many files." }
+        [long]$totalSize = 0
+        foreach ($entry in $entries) {
+            $totalSize += [long]$entry.Length
+            if ($totalSize -gt 2147483648) { throw "Release exceeds unpacked size limit." }
+        }
+        [long]$written = 0
+        [int]$count = 0
+        $lastCheckpoint = [DateTime]::UtcNow
+        $buffer = New-Object byte[] (1024 * 1024)
+        foreach ($entry in $entries) {
+            $name = $entry.FullName.Replace([char]'/', [char]'\')
+            if ([string]::IsNullOrWhiteSpace($name) -or $name.Contains(':') -or $name.StartsWith('\')) {
+                throw "Release contains an invalid archive path."
+            }
+            # ZIP links must not escape the controlled staging tree.
+            $unixType = ($entry.ExternalAttributes -shr 16) -band 61440
+            if ($unixType -eq 40960) { throw "Release contains an unsupported symbolic link." }
+            $target = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($root, $name))
+            if (-not $target.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Release contains an out-of-root archive path."
+            }
+            $isDirectory = $name.EndsWith('\')
+            if ($isDirectory) {
+                [System.IO.Directory]::CreateDirectory($target) | Out-Null
+            } else {
+                [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($target)) | Out-Null
+                $inputStream = $entry.Open()
+                $outputStream = [System.IO.File]::Open($target,
+                    [System.IO.FileMode]::CreateNew,
+                    [System.IO.FileAccess]::Write,
+                    [System.IO.FileShare]::None)
+                try {
+                    while (($bytesRead = $inputStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                        $outputStream.Write($buffer, 0, $bytesRead)
+                        $written += $bytesRead
+                        if (([DateTime]::UtcNow - $lastCheckpoint).TotalSeconds -ge 1) {
+                            $pct = 20 + [int][Math]::Floor(26 * $written / [Math]::Max(1.0, [double]$totalSize))
+                            Progress "extract" ([Math]::Min(46, $pct)) ($count + 1) $entries.Count $written
+                            $lastCheckpoint = [DateTime]::UtcNow
+                        }
+                    }
+                } finally {
+                    $outputStream.Dispose()
+                    $inputStream.Dispose()
+                }
+            }
+            $count += 1
+            if (($count % 10 -eq 0) -or $count -eq $entries.Count) {
+                $pct = 20 + [int][Math]::Floor(26 * $written / [Math]::Max(1.0, [double]$totalSize))
+                Progress "extract" ([Math]::Min(46, $pct)) $count $entries.Count $written
+                $lastCheckpoint = [DateTime]::UtcNow
+            }
+        }
+    } finally {
+        $zip.Dispose()
+    }
+    Progress "extract" 47 $count $entries.Count $written
     $children = @(Get-ChildItem -LiteralPath $stageDir)
     if ($children.Count -eq 1 -and $children[0].PSIsContainer) {
         $source = $children[0].FullName
@@ -393,7 +472,11 @@ try {
     Write-UpdateLog "Worker started. Pid=$($worker.Id)"
     $phaseName = "extract"
     $lastPhase = ""
+    $lastCheckpointUtc = ""
     $phaseSince = Get-Date
+    $totalSince = Get-Date
+    $fileIndex = 0
+    $fileTotal = 0
     $phaseLabels = @{ extract = "Extracting update"; copy = "Copying updated files"; verify = "Verifying installation"; restart = "Preparing restart" }
     while ($true) {
         $worker.Refresh()
@@ -404,17 +487,30 @@ try {
                     if ($status.phase -ne $lastPhase) {
                         $lastPhase = $status.phase
                         $phaseName = $lastPhase
-                        $phaseSince = Get-Date
                         Write-UpdateLog "Installer phase: $phaseName"
                     }
-                    Set-UpdateProgress ([int]$status.percent) "$($phaseLabels[$phaseName])…"
+                    # Each atomic checkpoint proves forward progress, even if
+                    # the extraction phase itself has not changed.
+                    if ([string]$status.utc -ne $lastCheckpointUtc) {
+                        $lastCheckpointUtc = [string]$status.utc
+                        $phaseSince = Get-Date
+                    }
+                    $fileIndex = [int]$status.file_index
+                    $fileTotal = [int]$status.file_total
+                    $labelText = "$($phaseLabels[$phaseName])…"
+                    if ($phaseName -eq "extract" -and $fileTotal -gt 0) {
+                        $labelText = "Extracting update… file $fileIndex of $fileTotal"
+                    }
+                    Set-UpdateProgress ([int]$status.percent) $labelText
                 }
             } catch { }
         }
         if ($worker.HasExited) { break }
-        if (((Get-Date) - $phaseSince).TotalSeconds -ge 180) {
+        if (((Get-Date) - $phaseSince).TotalSeconds -ge 180 -or
+            ((Get-Date) - $totalSince).TotalSeconds -ge 900) {
             try { $worker.Kill() } catch {}
-            throw "Update worker stalled in phase $phaseName."
+            Write-UpdateLog "Worker timeout. Phase=$phaseName File=$fileIndex/$fileTotal"
+            throw "Update worker stalled in phase $phaseName (file $fileIndex of $fileTotal)."
         }
         [System.Windows.Forms.Application]::DoEvents()
         Start-Sleep -Milliseconds 150
@@ -451,7 +547,7 @@ try {
 catch {
     $message = $_.Exception.Message
     Write-UpdateLog "Install failed: $message"
-    $safePhase = if ($currentPhase -in @("extract","copy","verify","restart")) { $currentPhase } else { "unknown" }
+    $safePhase = if ($phaseName -in @("extract","copy","verify","restart")) { $phaseName } else { "unknown" }
     @{ ok = $false; error = $message; phase = $safePhase; version = $expectedVersion; failed_at = (Get-Date).ToString("o") } |
         ConvertTo-Json | Set-Content -Path $resultPath -Encoding UTF8
     Set-UpdateProgress 100 "Update failed."
@@ -466,7 +562,9 @@ catch {
     $form.Close()
 }
 finally {
-    # Staging cleanup is deferred; recursive OneDrive/AV cleanup can freeze the GUI.
+    # Never block the UI deleting a potentially large staging tree.
+    if ($lockAcquired) { try { $installerLock.ReleaseMutex() } catch {} }
+    if ($installerLock) { $installerLock.Dispose() }
     if (!$form.IsDisposed) { $form.Close() }
 }
 '''
