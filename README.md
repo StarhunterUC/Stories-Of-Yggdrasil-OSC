@@ -1,8 +1,8 @@
-# Stories Of Yggdrasil OSC v0.8.22-prebuild.2 (Test Build)
+# Stories Of Yggdrasil OSC v0.8.22-prebuild.3 (Test Build)
 
 A streamlined Windows desktop bridge between VRChat OSC and the VPS-hosted Sam.py system.
 
-**v0.8.22-prebuild.2 (Test Build)** adds local crash and freeze diagnostics, a separate Desktop hang watchdog, installer stage monitoring and Settings → Privacy & Crash Reports. Anonymous report submission is disabled by default, requires reviewing each report, and is unavailable until an administrator deploys and configures the first-party HTTPS receiver. It never shares raw logs, pairing credentials, player IDs, usernames, character data or personal paths. Existing Protocol 21 / TB18 requirements remain.
+**v0.8.22-prebuild.3 (Test Build)** adds NPC runtime switching HP isolation and a confirmed full-HP NPC restore button, while retaining local crash and freeze diagnostics, a separate Desktop hang watchdog, installer stage monitoring and Settings → Privacy & Crash Reports. Anonymous report submission is disabled by default, requires reviewing each report, and is unavailable until an administrator deploys and configures the first-party HTTPS receiver. It never shares raw logs, pairing credentials, player IDs, usernames, character data or personal paths. Existing Protocol 21 / TB18 requirements remain.
 
 
 ## v0.8.21

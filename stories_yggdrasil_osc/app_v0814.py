@@ -20,6 +20,7 @@ from .config import (
 )
 from .tls_runtime import tls_diagnostics
 from . import crash_reporting
+from .npc_runtime import confirmed_npc, npc_restore_payload
 from .winhttp_transport import available as winhttp_available
 from .qol import (
     action_key,
@@ -48,6 +49,7 @@ class StoriesOSCAppV0814(StoriesOSCApp):
         self.sam_connection_state = "paired"
         self.sam_last_connection_error = ""
         self._ui_dirty = False
+        self.npc_restore_pending = False
         self._last_action_signature: tuple[Any, ...] | None = None
         self._activity_view_suspended = False
         self.action_catalog: list[dict[str, Any]] = []
@@ -499,7 +501,9 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             wraplength=760,
             justify="left",
         )
-        self.npc_runtime_status_label.grid(row=1, column=0, columnspan=4, sticky="w", padx=20, pady=6)
+        self.npc_runtime_status_label.grid(row=1, column=0, columnspan=3, sticky="w", padx=20, pady=6)
+        self.npc_restore_button = ttk.Button(npc_card, text="Restore Full NPC HP", style="Green.TButton", command=self.restore_npc_hp)
+        self.npc_restore_button.grid(row=1, column=3, sticky="e", padx=8, pady=6)
         self.npc_favorite_button = ttk.Button(npc_card, text="☆ Favorite NPC", command=self.toggle_current_npc_favorite)
         self.npc_favorite_button.grid(row=1, column=4, sticky="e", padx=(0, 20), pady=6)
         ttk.Label(npc_card, text="Search", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=20, pady=6)
@@ -608,6 +612,8 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             self._ui()["recent_npcs"] = recent[:12]
             self._mark_ui_dirty()
         self._refresh_npc_values()
+        if bool(self.config.get("npc_mode", {}).get("enabled", False)) and name != str(self.config.get("npc_mode", {}).get("enemy_name") or ""):
+            self.enable_npc_mode()
 
     def toggle_current_npc_favorite(self) -> None:
         name = str(self.npc_enemy_var.get() or "").strip()
@@ -625,30 +631,49 @@ class StoriesOSCAppV0814(StoriesOSCApp):
     def _refresh_npc_runtime_status(self) -> None:
         if not hasattr(self, "npc_runtime_status_label"):
             return
-        npc_cfg = self.config.get("npc_mode", {})
-        requested = bool(npc_cfg.get("enabled", False))
-        profile_mode = str(self.remote_state.get("profile_mode") or "player").strip().casefold()
-        runtime_name = str(
-            (self.remote_character or {}).get("name")
-            or self.remote_state.get("active_character")
-            or self.config.get("profile", {}).get("name")
-            or "Unknown"
-        )
-        if profile_mode == "npc":
+        cfg = self.config.get("npc_mode", {})
+        char = self.remote_state.get("character") if isinstance(self.remote_state.get("character"), dict) else {}
+        if confirmed_npc(self.remote_state, cfg):
+            hp, maximum = int(char.get("hp", 0) or 0), max(1, int(char.get("max_hp", 1) or 1))
             self.npc_runtime_status_label.configure(
-                text=f"Runtime Profile: NPC — {runtime_name} • NPC HP/MP/stats are authoritative.",
-                foreground=THEME["green"],
-            )
-        elif requested:
-            self.npc_runtime_status_label.configure(
-                text=f"Runtime Profile: NPC requested — waiting for Sam.py acknowledgement. Current profile: {runtime_name}.",
-                foreground=THEME["yellow"],
-            )
+                text=f"Runtime Profile: NPC — {char.get('name') or 'Unknown'} • HP {hp:,}/{maximum:,} (Sam.py authoritative).",
+                foreground=THEME["green"])
+            available = hp < maximum and not self.npc_restore_pending and not self.sam_sync_inflight and not self.sam_local_dirty and bool(self.config.get("sam", {}).get("token"))
         else:
+            waiting = bool(cfg.get("enabled")) or str(self.remote_state.get("profile_mode") or "player") == "npc"
             self.npc_runtime_status_label.configure(
-                text=f"Runtime Profile: PLAYER — {runtime_name}.",
-                foreground=THEME["muted"],
-            )
+                text="NPC profile transition: awaiting selected runtime acknowledgement from Sam.py." if waiting else
+                     f"Runtime Profile: PLAYER — {char.get('name') or 'Unknown'}.",
+                foreground=THEME["yellow"] if waiting else THEME["muted"])
+            available = False
+        if hasattr(self, "npc_restore_button"):
+            self.npc_restore_button.state(["!disabled"] if available else ["disabled"])
+
+    def restore_npc_hp(self) -> None:
+        if self.npc_restore_pending or self.sam_sync_inflight or self.sam_local_dirty:
+            messagebox.showwarning("NPC Recovery", "Wait for the pending Sam.py sync to complete.")
+            return
+        cfg = self.config.get("npc_mode", {})
+        if not self.config.get("sam", {}).get("token"):
+            messagebox.showwarning("NPC Recovery", "Pair your Desktop with Sam.py first.")
+            return
+        try:
+            payload = npc_restore_payload(
+                self.remote_state, cfg, client_seq=self.sam_client_seq + 1,
+                client_session=self.sam_client_session, client_version=__version__)
+        except ValueError as exc:
+            messagebox.showwarning("NPC Recovery", str(exc))
+            return
+        name = str((self.remote_state.get("character") or {}).get("name") or "NPC")
+        if not messagebox.askyesno(
+            "Restore NPC HP", f"Restore {name} to {payload['hp']:,} HP?\n\n"
+            "This manual NPC session recovery does not spend Player items or change Player HP."):
+            return
+        self.sam_client_seq += 1
+        self.npc_restore_pending = True
+        self.sam_client.restore_npc_hp(payload)
+        self._refresh_npc_runtime_status()
+
 
     def enable_npc_mode(self) -> None:
         name = str(self.npc_enemy_var.get() or "").strip()
@@ -953,6 +978,17 @@ class StoriesOSCAppV0814(StoriesOSCApp):
     # Sam event and refresh enhancements
     # ------------------------------------------------------------------
     def _handle_sam_event(self, event) -> None:
+        if event.kind == "npc_restore_hp":
+            self.npc_restore_pending = False
+            state = event.data.get("state") if isinstance(event.data, dict) else None
+            if event.ok and isinstance(state, dict) and confirmed_npc(state, self.config.get("npc_mode", {})):
+                self._apply_sam_state(state, source="npc_restore_hp", force=True)
+                self._append_activity("RECOVERY", event.message)
+            else:
+                self._append_activity("SAM ERROR", f"NPC recovery not confirmed: {event.message}")
+                self.sam_client.pull()
+            self._refresh_npc_runtime_status()
+            return
         # Poll/sync/test outages are transport failures, not pairing revocations
         # and not authoritative DM-gate closures. Preserve the last state and
         # let the background client recover without requiring Reconnect All.

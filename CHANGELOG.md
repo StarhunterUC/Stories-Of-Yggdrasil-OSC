@@ -1,3 +1,11 @@
+## v0.8.22-prebuild.3 — NPC HP isolation / manual session recovery
+
+- Block passive HP writes during player ↔ NPC transitions and while NPC Mode is active.
+- Automatically apply a changed NPC roster selection in NPC Mode.
+- Add confirmed, manually authorized Restore Full NPC HP using authenticated /sync; does not spend Player items.
+- NPC MP restoration requires a separate server-side capability and is not changed.
+- Stable v0.8.21 and Protocol 21 combat handling remain unchanged.
+
 # v0.8.22-prebuild.2 — Crash reporting (privacy-first) and installer stall diagnostics
 
 - Local crash and hang reports with strict diagnostic field allowlisting, independent UI watchdog, manual review and opt-in reporting controls.

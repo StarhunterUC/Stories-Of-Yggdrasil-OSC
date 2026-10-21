@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .tls_runtime import get_ssl_context, tls_diagnostics
+from .npc_runtime import restored_state_matches
 from .winhttp_transport import (
     WinHttpRequestError,
     available as winhttp_available,
@@ -164,6 +165,9 @@ class SamClient:
             "item_id": int(item_id),
             "event_id": str(event_id),
         }))
+
+    def restore_npc_hp(self, payload: dict[str, Any]) -> None:
+        self._commands.put(("npc_restore_hp", dict(payload)))
 
     def use_recovery(self, kind: str, name: str) -> None:
         self._commands.put(
@@ -613,6 +617,15 @@ class SamClient:
                 result,
                 source="helpful_item_receipt",
             )
+        elif command == "npc_restore_hp":
+            result = self._request("POST", "/sync", payload=payload, use_auth=True)
+            self._remember_state_response(result)
+            state = result.get("state") if isinstance(result.get("state"), dict) else {}
+            confirmed = restored_state_matches(state, key=str(payload.get("npc_enemy_key") or ""))
+            self._emit("npc_restore_hp", confirmed,
+                       "NPC full HP restoration confirmed by Sam.py." if confirmed else
+                       "Sam.py did not confirm the selected NPC's restored HP.",
+                       result, source="npc_restore_hp")
         elif command == "use_recovery":
             result = self._request(
                 "POST",

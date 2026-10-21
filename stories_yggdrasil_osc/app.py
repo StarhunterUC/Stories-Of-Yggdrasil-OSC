@@ -25,6 +25,7 @@ from .combat_authority import (
 )
 from .config import get_app_data_dir, get_log_path, load_config, load_runtime_state, save_config, save_runtime_state
 from .controller import BridgeController
+from .npc_runtime import passive_hp_sync_allowed
 from .helpful_items import (
     ITEM_RESULT_IDLE,
     is_physical_helpful_item,
@@ -1270,7 +1271,7 @@ class StoriesOSCApp:
             payload["vrchat_user_id"] = vrchat_user_id
         if vrchat_display_name:
             payload["vrchat_display_name"] = vrchat_display_name
-        if bool(cfg.get("sync_hp", True)):
+        if bool(cfg.get("sync_hp", True)) and passive_hp_sync_allowed(self.remote_state, self.config.get("npc_mode", {})):
             payload["hp"] = int(snap["current_hp"])
             payload["hp_ratio"] = float(snap["hp_ratio"])
         if bool(cfg.get("sync_combat_toggle", True)):
