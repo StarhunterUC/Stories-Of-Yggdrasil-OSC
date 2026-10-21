@@ -1,0 +1,18 @@
+name: Installer extraction tests
+on:
+  push:
+    branches:
+      - installer-extract-v8
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run extraction and updater regressions
+        shell: pwsh
+        run: python -m unittest discover -s tests -p "test_installer*.py" -v

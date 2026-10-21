@@ -1,3 +1,11 @@
+# v0.8.22-prebuild.8 — Installer extraction timeouts
+
+- Replace the stalled PowerShell Expand-Archive worker with ZIP streaming and file-level checkpoints.
+- Track heartbeat progress, per-file counters and a total 15-minute bound, with an individual 3-minute stall timeout.
+- Serialize updater sessions and stage each in a unique directory, reducing conflicts between repeated attempts.
+- Record actual failure phase, not 'unknown'. Preserve existing successful update behavior.
+- A frozen older installer cannot fix itself; install this release ZIP manually. The extraction fix has not been validated on an end-user Windows machine.
+
 # v0.8.22-prebuild.7 — Isolated TB18.2 external-hit parameters
 
 - Recognize SoY_ExternalHitWeak/Average as external, non-authoritative contacts.
