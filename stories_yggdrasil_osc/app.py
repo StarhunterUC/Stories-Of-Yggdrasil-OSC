@@ -1022,9 +1022,29 @@ class StoriesOSCApp:
     def _submit_pvp_attack_attempt(self, result: EventResult) -> bool:
         if self.avatar_compatibility.protocol != 21:
             return False
+        # A physical contact can emit multiple same-tier local transitions in a
+        # single sword swing. Suppress these at the source; Sam.py independently
+        # deduplicates same authenticated device pulses and remains authoritative.
+        # Player attack attempts are NEVER submitted while NPC Mode is selected,
+        # including the acknowledgement transition back to Player.
+        npc_cfg = self.config.get("npc_mode", {})
+        server_state = getattr(self, "remote_state", {}) or {}
+        now = time.monotonic()
+        if (bool(npc_cfg.get("enabled", False)) or
+                str(server_state.get("profile_mode") or "player").casefold() == "npc"):
+            if now - float(getattr(self, "_pvp_npc_hold_logged_at", -1000000.0)) > 5.0:
+                self._append_activity("COMBAT HOLD", "PvP attack ignored: awaiting confirmed Player runtime (NPC Mode active or transitioning).")
+                self._pvp_npc_hold_logged_at = now
+            return True
+        if not bool(getattr(self.state, "combat_enabled", False)):
+            return True
         tier = str(result.metadata.get("tier") or "average").strip().lower()
         if tier not in {"weak", "average", "strong", "critical"}:
             tier = "average"
+        last = getattr(self, "_pvp_last_attack_pulse", None)
+        if isinstance(last, tuple) and last[0] == tier and 0 <= now - last[1] < 0.85:
+            return True
+        self._pvp_last_attack_pulse = (tier, now)
         event_id = new_event_id("pvpattempt")
         self.sam_client.pvp_attack_attempt(tier, event_id)
         self._append_activity(
@@ -1271,7 +1291,7 @@ class StoriesOSCApp:
             payload["vrchat_user_id"] = vrchat_user_id
         if vrchat_display_name:
             payload["vrchat_display_name"] = vrchat_display_name
-        if bool(cfg.get("sync_hp", True)) and passive_hp_sync_allowed(self.remote_state, self.config.get("npc_mode", {})):
+        if bool(cfg.get("sync_hp", True)) and passive_hp_sync_allowed(getattr(self, "remote_state", {}), self.config.get("npc_mode", {})):
             payload["hp"] = int(snap["current_hp"])
             payload["hp_ratio"] = float(snap["hp_ratio"])
         if bool(cfg.get("sync_combat_toggle", True)):

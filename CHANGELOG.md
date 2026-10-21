@@ -1,3 +1,11 @@
+## v0.8.22-prebuild.4 — Protocol 21 PvP physical contact stabilization
+
+- Suppress rapid same-tier outgoing attack volume pulses within 850ms; distinct tiers remain distinct until Unity Tool mapping is checked.
+- Prevent PvP outgoing attempts while NPC Mode is selected or the server has not yet confirmed return to Player Mode.
+- Fix the remote_state fixture regression that blocked five CI tests in prebuild.3.
+- The complementary, reversible Sam.py v2 handshake module de-duplicates same-device contact bursts, reports tier-mismatch versus competing contacts, and preserves DM-gated server-authoritative damage.
+- No change to player HP formulas, spell mappings or Protocol 21 Unity Tool data. Stable v0.8.21 untouched.
+
 ## v0.8.22-prebuild.3 — NPC HP isolation / manual session recovery
 
 - Block passive HP writes during player ↔ NPC transitions and while NPC Mode is active.
