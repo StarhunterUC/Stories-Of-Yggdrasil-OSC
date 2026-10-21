@@ -1,3 +1,11 @@
+## v0.8.22-prebuild.5 — Updater restart-stage hang fix
+
+- Replace PowerShell Start-Job handoff with a monitored, independent worker process and atomic JSON checkpoints.
+- Clear stale progress/result files on every new installation.
+- Limit unresponsive worker phases to 180 seconds and avoid synchronous recursive staging cleanup on the UI thread.
+- Re-verify installed version in the parent installer and log completion after restarting the application.
+- Retain PvP v2 reliability and NPC HP safeguards. Stable v0.8.21 remains unchanged.
+
 ## v0.8.22-prebuild.4 — Protocol 21 PvP physical contact stabilization
 
 - Suppress rapid same-tier outgoing attack volume pulses within 850ms; distinct tiers remain distinct until Unity Tool mapping is checked.
