@@ -1571,6 +1571,22 @@ class StoriesOSCApp:
                     action_result = sync_result.get(result_key) if isinstance(sync_result.get(result_key), dict) else {}
                     if action_result:
                         action_message = str(action_result.get("message") or fallback)
+                        if result_key == "spell_cast_result":
+                            paid = action_result.get("mp_spent")
+                            before = action_result.get("mp_before")
+                            after = action_result.get("mp_after")
+                            gil = action_result.get("gil_spent")
+                            base = action_result.get("base_mp_cost")
+                            if bool(action_result.get("authorized")) and paid is not None:
+                                action_message += (
+                                    f" [ID {action_result.get('spell_id', '?')}; "
+                                    f"base {base if base is not None else '?'} MP; "
+                                    f"paid {paid} MP / {gil if gil is not None else 0} Gil; "
+                                    f"MP {before if before is not None else '?'} → "
+                                    f"{after if after is not None else '?'}]"
+                                )
+                        elif result_key == "spell_result" and action_result.get("spell_id"):
+                            action_message += " [Incoming Contact: recipient MP not charged.]"
                         self._append_activity(
                             accepted_label if bool(action_result.get("applied", False)) else info_label,
                             action_message,

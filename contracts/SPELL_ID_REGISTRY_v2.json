@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "tool_version": "0.5.2",
+  "tool_version": "0.5.10-TB18.2",
   "parameter": "SoY_SpellType",
   "range": {
     "minimum": 0,
@@ -13,12 +13,14 @@
       "1-25",
       "101-127"
     ],
-    "duplicate_school_memberships_reuse_the_same_id": true
+    "duplicate_school_memberships_reuse_the_same_id": true,
+    "unity_tool": "0.5.10-TB18.2",
+    "extension": "Light Magick IDs 145-151; preserves legacy 98-99"
   },
   "counts": {
-    "unique_spell_ids": 144,
-    "school_memberships": 151,
-    "schools": 12
+    "unique_spell_ids": 151,
+    "school_memberships": 158,
+    "schools": 13
   },
   "categories": [
     "offensive",
@@ -807,6 +809,43 @@
         "id": 144,
         "name": "Rebirth Bloom",
         "category": "revival"
+      }
+    ],
+    "Light Magick": [
+      {
+        "id": 145,
+        "name": "Light Lance",
+        "category": "offensive"
+      },
+      {
+        "id": 146,
+        "name": "Radiant Fracture",
+        "category": "offensive"
+      },
+      {
+        "id": 147,
+        "name": "Light Imbuement",
+        "category": "support"
+      },
+      {
+        "id": 148,
+        "name": "Dawnfall",
+        "category": "offensive"
+      },
+      {
+        "id": 149,
+        "name": "Sacred Flame",
+        "category": "offensive"
+      },
+      {
+        "id": 150,
+        "name": "Radiant Horizon",
+        "category": "offensive"
+      },
+      {
+        "id": 151,
+        "name": "Light Atomic",
+        "category": "offensive"
       }
     ]
   },
@@ -1968,6 +2007,62 @@
       "category": "revival",
       "schools": [
         "Nature Magick"
+      ]
+    },
+    {
+      "id": 145,
+      "name": "Light Lance",
+      "category": "offensive",
+      "schools": [
+        "Light Magick"
+      ]
+    },
+    {
+      "id": 146,
+      "name": "Radiant Fracture",
+      "category": "offensive",
+      "schools": [
+        "Light Magick"
+      ]
+    },
+    {
+      "id": 147,
+      "name": "Light Imbuement",
+      "category": "support",
+      "schools": [
+        "Light Magick"
+      ]
+    },
+    {
+      "id": 148,
+      "name": "Dawnfall",
+      "category": "offensive",
+      "schools": [
+        "Light Magick"
+      ]
+    },
+    {
+      "id": 149,
+      "name": "Sacred Flame",
+      "category": "offensive",
+      "schools": [
+        "Light Magick"
+      ]
+    },
+    {
+      "id": 150,
+      "name": "Radiant Horizon",
+      "category": "offensive",
+      "schools": [
+        "Light Magick"
+      ]
+    },
+    {
+      "id": 151,
+      "name": "Light Atomic",
+      "category": "offensive",
+      "schools": [
+        "Light Magick"
       ]
     }
   ]

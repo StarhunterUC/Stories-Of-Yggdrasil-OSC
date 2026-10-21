@@ -1,3 +1,11 @@
+## v0.8.22-prebuild.10 — Light Magick registry and casting telemetry
+
+- Preserve all 144 previous spells, including legacy IDs 98/99 absent from Unity TB18.2; add Light Magick IDs 145–151.
+- Display caster-side authoritative base MP cost, actual MP/Gil spent, and MP before/after, when returned by Sam.py.
+- Clarify that incoming spell contacts do not charge the recipient.
+- Server registry must be upgraded separately; missing spell effect semantics and existing spell costs are not silently replaced.
+- Stable v0.8.21 untouched.
+
 ## v0.8.22-prebuild.9 — Verified TB18.2 incoming damage repair
 
 - Fix Auto input mode suppressing native SoY hits after generic external health/status detection.
