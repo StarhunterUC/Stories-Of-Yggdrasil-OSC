@@ -24,6 +24,8 @@ from .npc_runtime import confirmed_npc, npc_restore_payload
 from .winhttp_transport import available as winhttp_available
 from .qol import (
     action_key,
+    ACTIVITY_TAG_COLORS,
+    activity_color_tag,
     append_grouped_activity,
     build_action_catalog,
     clamp_ui_scale,
@@ -211,6 +213,8 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             category=self.activity_filter_var.get() if hasattr(self, "activity_filter_var") else "All",
             search=self.activity_search_var.get() if hasattr(self, "activity_search_var") else "",
         )
+        for color_tag, color_hex in ACTIVITY_TAG_COLORS.items():
+            self.event_tree.tag_configure(color_tag, foreground=color_hex)
         selected_values = None
         selected = self.event_tree.selection()
         if selected:
@@ -222,7 +226,10 @@ class StoriesOSCAppV0814(StoriesOSCApp):
             message = str(row.get("event") or "")
             if count > 1:
                 message = f"{message}  ×{count}"
-            item = self.event_tree.insert("", tk.END, values=(row.get("time", ""), row.get("type", ""), message))
+            item = self.event_tree.insert(
+                "", tk.END, values=(row.get("time", ""), row.get("type", ""), message),
+                tags=(activity_color_tag(row.get("type", ""), message),),
+            )
             if selected_values and tuple(self.event_tree.item(item, "values")) == tuple(selected_values):
                 self.event_tree.selection_set(item)
 

@@ -26,6 +26,7 @@ from .combat_authority import (
 from .config import get_app_data_dir, get_log_path, load_config, load_runtime_state, save_config, save_runtime_state
 from .controller import BridgeController
 from .npc_runtime import passive_hp_sync_allowed
+from .qol import ACTIVITY_TAG_COLORS, activity_color_tag
 from .helpful_items import (
     ITEM_RESULT_IDLE,
     is_physical_helpful_item,
@@ -414,6 +415,8 @@ class StoriesOSCApp:
         self.event_tree.column("type", width=86, anchor="center", stretch=False)
         self.event_tree.column("event", width=520)
         self.event_tree.pack(fill=tk.BOTH, expand=True, padx=18, pady=(0, 18))
+        for color_tag, color_hex in ACTIVITY_TAG_COLORS.items():
+            self.event_tree.tag_configure(color_tag, foreground=color_hex)
         return page
 
     def _build_recovery_page(self) -> ttk.Frame:
@@ -1148,6 +1151,20 @@ class StoriesOSCApp:
         # through later as stale legacy /sync telemetry.
         self._consume_hit_telemetry()
         if payload is None:
+            # A Protocol 21 attack parameter can coexist with legacy/external
+            # receivers on the same avatar. Show which path reached the Desktop
+            # rather than falsely implying that an automatic receipt was sent.
+            if avatar_protocol == 21 and not source_enemy:
+                reason = (
+                    f"{reason} [Contact path: {contact_source or 'unknown'}; "
+                    f"external={external_damage_source}. Canonical SoY hit "
+                    "receiver is required for automatic PvP attribution.]"
+                )
+            elif avatar_protocol != 21 and not source_enemy:
+                reason = (
+                    f"{reason} [Avatar Protocol {avatar_protocol}; "
+                    "automatic receipts require a verified Protocol 21 marker.]"
+                )
             self._append_activity("COMBAT HOLD", reason)
             self.combat_last_result = {
                 "ok": False,
@@ -2325,7 +2342,8 @@ class StoriesOSCApp:
         self.event_rows.append(row)
         self.event_rows = self.event_rows[-100:]
         try:
-            self.event_tree.insert("", 0, values=(stamp, category, message))
+            self.event_tree.insert("", 0, values=(stamp, category, message),
+                                   tags=(activity_color_tag(category, message),))
             for item in self.event_tree.get_children()[60:]:
                 self.event_tree.delete(item)
         except Exception:

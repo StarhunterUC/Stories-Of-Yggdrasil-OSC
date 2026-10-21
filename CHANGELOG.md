@@ -1,3 +1,10 @@
+## v0.8.22-prebuild.6 — Contact provenance diagnostics and activity colors
+
+- Color-code Recent Activity by severity and outcome: damage, restoration, holds, errors, and system information.
+- When a player hit falls back to manual attribution, show the sanitized Contact source and Protocol marker state; do not invent an attacker.
+- Preserve Protocol 21 server-authoritative matching, combat damage, installed spell registry, and existing OSC APIs.
+- This Desktop update does not resolve server-side spell ID 146, scroll unlock semantics, MP regeneration, or Unity Tool menus/Write Defaults; those need coordinated server/Unity changes.
+
 ## v0.8.22-prebuild.5 — Updater restart-stage hang fix
 
 - Replace PowerShell Start-Job handoff with a monitored, independent worker process and atomic JSON checkpoints.

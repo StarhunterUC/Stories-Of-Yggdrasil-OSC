@@ -21,6 +21,39 @@ SENSITIVE_KEYS = {
     "code",
 }
 
+
+# Activity color tags operate on fixed application categories only. Messages,
+# user names, and freeform API data can never be interpreted as a Tk style.
+ACTIVITY_TAG_COLORS = {
+    "danger": "#ff777d",     # failures and rejected operations
+    "hold": "#e7b665",       # identity/authorization holds
+    "damage": "#ff9b72",     # registered damage and offensive actions
+    "healing": "#68dba3",    # healing, restores and recovery
+    "info": "#82b7ed",       # sync, connection and supportive events
+    "neutral": "#dbe0e5",
+}
+
+
+def activity_color_tag(category: Any, message: Any = "") -> str:
+    kind = str(category or "").strip().upper()
+    body = str(message or "").casefold()
+    if "ERROR" in kind or kind in {"CRASH", "FAILED"}:
+        return "danger"
+    if "HOLD" in kind or kind in {"WARNING", "REJECTED"}:
+        return "hold"
+    if kind in {"DAMAGE", "HIT"}:
+        return "damage"
+    if kind in {"HEAL", "RECOVERY", "REVIVE"}:
+        return "healing"
+    if kind == "COMBAT":
+        if any(term in body for term in ("struck", "damage.", "damage!", "hit ", "defeated")):
+            return "damage"
+        return "info"
+    if kind in {"SAM", "SAM LINK", "SYNC", "AVATAR", "STATUS", "CAST INFO", "SPELL INFO"}:
+        return "info"
+    return "neutral"
+
+
 ACTIVITY_GROUP_SECONDS = 20.0
 ACTIVITY_CLEANUP_SUPPRESS_SECONDS = 45.0
 
