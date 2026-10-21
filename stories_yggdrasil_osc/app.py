@@ -778,6 +778,7 @@ class StoriesOSCApp:
             self.last_avatar_id = str(event.values[0]) if event.values else "—"
             self.output_cache.clear()
             self.avatar_compatibility.reset(self.last_avatar_id)
+            self.controller.prefer_native_protocol21_hits = False
             self.controller.handle_osc(event.address, event.values, event.received_at_monotonic)
             self._append_activity("AVATAR", f"Loaded avatar {self._short_avatar(self.last_avatar_id)}. Waiting for Unity Tool Protocol 20 marker.")
             self._schedule_sam_sync("avatar_change", immediate=True, vrc_trigger=False)
@@ -792,6 +793,9 @@ class StoriesOSCApp:
             # TB17 / Protocol 20 publishes an explicit local compatibility marker.
             # Marker traffic is consumed here and never forwarded to gameplay.
             if self.avatar_compatibility.observe_parameter(parameter_name, parameter_value):
+                self.controller.prefer_native_protocol21_hits = (
+                    self.avatar_compatibility.supports_isolated_native_hits
+                )
                 return
 
             # Ignore Desktop -> avatar state echoes before compatibility
@@ -1089,7 +1093,15 @@ class StoriesOSCApp:
         # explicit Friendly/Player-side contact and must never be silently
         # reclassified as an NPC merely because a PvP identity was not selected.
         contact_source = str(result.metadata.get("source") or "").strip().casefold()
-        canonical_soy_contact = contact_source == "direct" and not external_damage_source
+        # On TB18.2+ native tiers are physically separated from generic
+        # Sword/Weapon/Hands compatibility aliases. Their alignment pulse is
+        # not valid evidence to demote a genuine canonical native hit.
+        isolated_native = bool(
+            getattr(self.controller, "prefer_native_protocol21_hits", False)
+        )
+        canonical_soy_contact = (
+            contact_source == "direct" and (isolated_native or not external_damage_source)
+        )
         # Protocol 21: canonical Player-side Stories Contacts no longer require
         # the manual PvP Source selector. The target submits an authenticated
         # hit receipt; Sam.py pairs it with exactly one attacker-side attempt.

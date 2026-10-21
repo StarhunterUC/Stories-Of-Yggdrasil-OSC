@@ -1,3 +1,12 @@
+## v0.8.22-prebuild.9 — Verified TB18.2 incoming damage repair
+
+- Fix Auto input mode suppressing native SoY hits after generic external health/status detection.
+- Enable canonical-hit precedence **only** for a verified Protocol 21/TB18.2 marker; legacy and unverified avatars retain existing fail-closed behavior.
+- Preserve TB18.2 revision metadata when the 121/122 recovery beacon is seen.
+- Prevent shared Sword/Weapon alignment telemetry from demoting a canonical TB18.2 Strong hit to legacy/manual source attribution.
+- Keep server authority and multi-attacker ambiguity fail-closed. No damage formulas, MP, or VPS spell ownership changes.
+- Stable v0.8.21 remains untouched.
+
 # v0.8.22-prebuild.8 — Installer extraction timeouts
 
 - Replace the stalled PowerShell Expand-Archive worker with ZIP streaming and file-level checkpoints.

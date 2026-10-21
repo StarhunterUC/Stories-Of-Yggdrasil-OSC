@@ -86,6 +86,9 @@ class BridgeController:
         self.last_input_at = 0.0
         self.external_detected = False
         self.last_external_parameter = ""
+        # Only verified TB18.2 / Protocol 21 avatars separate canonical and
+        # external receivers. App enables this after a complete marker.
+        self.prefer_native_protocol21_hits = False
         self.telemetry: dict[str, Any] = {
             "enemy_mode": False,
             # Direct Int parameters are local menu actions from this avatar.
@@ -252,6 +255,7 @@ class BridgeController:
             self.current_avatar_id = str(values[0]) if values else ""
             self.external_detected = False
             self.last_external_parameter = ""
+            self.prefer_native_protocol21_hits = False
             self.reset_edges()
             self.sync_outputs()
             return
@@ -278,6 +282,15 @@ class BridgeController:
             "pvp_attack_attempt", "hit_external",
         }
         if direct_entry is not None and direct_entry[0] in always_direct_kinds:
+            self._handle_input(name, direct_entry, values[0], t, source="direct")
+            return
+
+        # A verified TB18.2+ Stories receiver already isolates native hit tiers
+        # from third-party Sword/Weapon/Hands aliases. In Auto mode, native hits
+        # must not disappear just because a generic Health or status parameter
+        # was seen earlier on the same avatar.
+        if (mode == "auto" and self.prefer_native_protocol21_hits
+                and direct_entry is not None and direct_entry[0] == "hit"):
             self._handle_input(name, direct_entry, values[0], t, source="direct")
             return
 
@@ -703,7 +716,12 @@ class BridgeController:
                 )
             elif self.authoritative_sam_actions:
                 source_enemy = bool(pending.source_enemy or self._current_damage_source_enemy(t))
+                # External sender telemetry can pulse next to a native Strong
+                # receiver. Never turn a verified canonical TB18.2 hit into an
+                # external/mixed signal solely because of that unrelated tag.
                 external_source = bool(self._current_external_damage_source(t))
+                if pending.source == "direct" and self.prefer_native_protocol21_hits:
+                    external_source = False
                 self.telemetry["hit_event"] = pending.hit_type
                 self.telemetry["damage_source_enemy"] = source_enemy
                 self.telemetry["external_damage_source"] = external_source

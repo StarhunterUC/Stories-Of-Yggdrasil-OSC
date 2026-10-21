@@ -5,7 +5,7 @@ from typing import Any
 
 MIN_UNITY_PROTOCOL = 20
 MAX_UNITY_PROTOCOL = 21
-RECOMMENDED_UNITY_TOOL = "0.5.10-TB18"
+RECOMMENDED_UNITY_TOOL = "0.5.10-TB18.2"
 
 PARAM_PREFIX = "SoY_"
 MARKER_FIELDS = {
@@ -116,6 +116,15 @@ class UnityAvatarCompatibility:
         # 117/118; Protocol 21/TB18 uses 121/122.
         if field_name == "beacon" and self.values[field_name] in {117, 118, 121, 122}:
             protocol21 = self.values[field_name] in {121, 122}
+            # A beacon is a fallback marker, not authoritative revision
+            # metadata. Preserve the actual TB18.2 revision if already read
+            # from SoY_UnityToolTBRevision. Otherwise fail safely as TB18.0
+            # until the complete marker arrives.
+            prior_revision = (
+                _as_int(self.values.get("tb_revision", 0))
+                if protocol21 and _as_int(self.values.get("tb", 0)) == 18
+                and _as_int(self.values.get("protocol", 0)) == 21 else 0
+            )
             self.values.update(
                 {
                     "present": True,
@@ -123,7 +132,7 @@ class UnityAvatarCompatibility:
                     "minor": 5,
                     "patch": 10,
                     "tb": 18 if protocol21 else 17,
-                    "tb_revision": 0 if protocol21 else 5,
+                    "tb_revision": prior_revision if protocol21 else 5,
                     "protocol": 21 if protocol21 else 20,
                     "schema_valid": True,
                 }
@@ -178,6 +187,16 @@ class UnityAvatarCompatibility:
         if "schema_valid" not in self.values:
             return None
         return bool(self.values.get("schema_valid"))
+
+    @property
+    def supports_isolated_native_hits(self) -> bool:
+        """Canonical hit priority requires the corrected TB18.2 receiver map."""
+        return bool(
+            self.compatible and self.protocol == 21
+            and _as_int(self.values.get("tb", 0)) >= 18
+            and (_as_int(self.values.get("tb", 0)) > 18
+                 or _as_int(self.values.get("tb_revision", 0)) >= 2)
+        )
 
     @property
     def status(self) -> str:
