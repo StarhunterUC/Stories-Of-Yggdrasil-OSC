@@ -1,3 +1,9 @@
+# v0.8.22-prebuild.7 — Isolated TB18.2 external-hit parameters
+
+- Recognize SoY_ExternalHitWeak/Average as external, non-authoritative contacts.
+- Preserve native SoY Player damage; reject unverified attacker identity.
+- Keep Protocol 21 ambiguity safety and existing installer fixes.
+
 ## v0.8.22-prebuild.6 — Contact provenance diagnostics and activity colors
 
 - Color-code Recent Activity by severity and outcome: damage, restoration, holds, errors, and system information.

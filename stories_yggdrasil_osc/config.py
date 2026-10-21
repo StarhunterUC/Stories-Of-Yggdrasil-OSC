@@ -152,6 +152,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "hit_average": "SoY_HitAverage",
         "hit_strong": "SoY_HitStrong",
         "hit_critical": "SoY_HitCritical",
+        "external_hit_weak": "SoY_ExternalHitWeak",
+        "external_hit_average": "SoY_ExternalHitAverage",
         "hit_blocked": "SoY_HitBlocked",
         "debuff_burn": "SoY_DebuffBurn",
         "debuff_silence": "SoY_DebuffSilence",

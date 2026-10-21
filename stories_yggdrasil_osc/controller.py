@@ -119,6 +119,8 @@ class BridgeController:
             self.parameters["hit_average"]: ("hit", "average"),
             self.parameters["hit_strong"]: ("hit", "strong"),
             self.parameters["hit_critical"]: ("hit", "critical"),
+            self.parameters.get("external_hit_weak", "SoY_ExternalHitWeak"): ("hit_external", "weak"),
+            self.parameters.get("external_hit_average", "SoY_ExternalHitAverage"): ("hit_external", "average"),
             self.parameters["hit_blocked"]: ("block", None),
             self.parameters["debuff_burn"]: ("status", "burn"),
             self.parameters["debuff_silence"]: ("status", "silence"),
@@ -273,7 +275,7 @@ class BridgeController:
             "technick_bus_active", "technick_bus_bit",
             "item_bus_active", "item_bus_bit",
             "help_item_bus_active", "help_item_bus_bit", "helpful_item_touch",
-            "pvp_attack_attempt",
+            "pvp_attack_attempt", "hit_external",
         }
         if direct_entry is not None and direct_entry[0] in always_direct_kinds:
             self._handle_input(name, direct_entry, values[0], t, source="direct")
@@ -464,7 +466,9 @@ class BridgeController:
                     self._send_reaction(self.REACTION_CODES["blocked"], blocked=True)
             return
 
-        if kind == "hit" and detail:
+        if kind in {"hit", "hit_external"} and detail:
+            if kind == "hit_external":
+                source = "external"
             if source == "external" and self._family_duplicate(detail, now):
                 snap = self.state.snapshot(now)
                 self._emit(EventResult(

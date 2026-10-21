@@ -1,3 +1,3 @@
-__version__ = "0.8.22-prebuild.6"
+__version__ = "0.8.22-prebuild.7"
 OSC_API_MINIMUM = "0.8.13"
 OSC_API_RECOMMENDED = "0.8.19"
