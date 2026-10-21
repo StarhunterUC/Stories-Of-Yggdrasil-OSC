@@ -96,7 +96,7 @@ required_markers = {
     "stories_yggdrasil_osc/avatar_compatibility.py": [
         "MIN_UNITY_PROTOCOL = 20",
         "MAX_UNITY_PROTOCOL = 21",
-        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB18"',
+        'RECOMMENDED_UNITY_TOOL = "0.5.10-TB18.2"',
         "SoY_UnitySchemaValid",
         "SoY_UnityMarkerBeacon",
     ],
