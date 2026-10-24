@@ -84,16 +84,23 @@ def should_suppress_activity_repeat(
     known non-actionable cleanup signatures are suppressed, and only briefly.
     """
     signature = _activity_message_signature(message)
-    if signature not in _ACTIVITY_CLEANUP_SIGNATURES:
+    wanted_category = str(category or "").strip().casefold()
+    # Only diagnostic i-frame rejects are safe to compress. Never suppress
+    # successful hits, PvP holds, damage, heals, or authoritative errors.
+    ignored_contact = (
+        wanted_category == "ignored"
+        and signature.endswith("contact ignored: local contact i-frame is active")
+    )
+    if signature not in _ACTIVITY_CLEANUP_SIGNATURES and not ignored_contact:
         return False
 
-    wanted_category = str(category or "").strip().casefold()
+    suppress_window = 1.0 if ignored_contact else ACTIVITY_CLEANUP_SUPPRESS_SECONDS
     epoch = float(time.time() if now is None else now)
 
     for row in reversed(list(rows)[-100:]):
         updated = float(row.get("updated_epoch", row.get("epoch", 0.0)) or 0.0)
         age = epoch - updated
-        if age > ACTIVITY_CLEANUP_SUPPRESS_SECONDS:
+        if age > suppress_window:
             break
         if (
             str(row.get("type") or "").strip().casefold() == wanted_category
