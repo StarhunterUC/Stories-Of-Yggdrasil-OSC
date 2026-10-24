@@ -479,7 +479,7 @@ class StoriesOSCApp:
         self.listener_status_label.grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=4)
         self.avatar_status_label = ttk.Label(osc_card, text="Avatar: —", style="Muted.Card.TLabel")
         self.avatar_status_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=4)
-        self.unity_status_label = ttk.Label(osc_card, text="Unity Tool: waiting for TB17 / Protocol 20 marker", style="Muted.Card.TLabel", wraplength=430, justify="left")
+        self.unity_status_label = ttk.Label(osc_card, text="Unity Tool: waiting for Protocol 20/21 marker", style="Muted.Card.TLabel", wraplength=430, justify="left")
         self.unity_status_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=4)
         self.activity_status_label = ttk.Label(osc_card, text="VRChat activity: none", style="Muted.Card.TLabel")
         self.activity_status_label.grid(row=4, column=0, columnspan=2, sticky="w", padx=20, pady=4)
@@ -488,7 +488,7 @@ class StoriesOSCApp:
         ttk.Button(osc_buttons, text="Start Listener", style="Green.TButton", command=self.start_listener).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(osc_buttons, text="Stop", command=self.stop_listener).pack(side=tk.LEFT, padx=6)
         ttk.Button(osc_buttons, text="Restart", command=self.restart_listener).pack(side=tk.LEFT, padx=6)
-        ttk.Label(osc_card, text="VRChat defaults: receive 9000, send 9001. Stories-generated gameplay requires Unity OSC Protocol 20.", style="Muted.Card.TLabel").grid(row=6, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 20))
+        ttk.Label(osc_card, text="VRChat defaults: receive 9000, send 9001. Stories-generated gameplay requires a verified Unity OSC Protocol 20/21 marker.", style="Muted.Card.TLabel").grid(row=6, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 20))
         return page
 
     def _build_npc_page(self) -> ttk.Frame:
@@ -780,7 +780,7 @@ class StoriesOSCApp:
             self.avatar_compatibility.reset(self.last_avatar_id)
             self.controller.prefer_native_protocol21_hits = False
             self.controller.handle_osc(event.address, event.values, event.received_at_monotonic)
-            self._append_activity("AVATAR", f"Loaded avatar {self._short_avatar(self.last_avatar_id)}. Waiting for Unity Tool Protocol 20 marker.")
+            self._append_activity("AVATAR", f"Loaded avatar {self._short_avatar(self.last_avatar_id)}. Waiting for verified Unity Tool Protocol 20/21 marker.")
             self._schedule_sam_sync("avatar_change", immediate=True, vrc_trigger=False)
             return
         if event.address.startswith("/avatar/parameters/"):
@@ -790,12 +790,19 @@ class StoriesOSCApp:
             parameter_name = event.address[len("/avatar/parameters/"):]
             parameter_value = event.values[0] if event.values else None
 
-            # TB17 / Protocol 20 publishes an explicit local compatibility marker.
-            # Marker traffic is consumed here and never forwarded to gameplay.
-            if self.avatar_compatibility.observe_parameter(parameter_name, parameter_value):
+            # TB17/20 and TB18/21 publish an explicit local compatibility marker.
+            # Do not process marker traffic as gameplay. Never infer a valid schema
+            # from ordinary SoY contacts, which could bypass attribution rules.
+            if self.avatar_compatibility.is_marker_parameter(parameter_name):
+                previously_compatible = self.avatar_compatibility.compatible
+                self.avatar_compatibility.observe_parameter(parameter_name, parameter_value)
                 self.controller.prefer_native_protocol21_hits = (
                     self.avatar_compatibility.supports_isolated_native_hits
                 )
+                if self.avatar_compatibility.compatible and not previously_compatible:
+                    self._append_activity("AVATAR", "Unity marker verified: " + self.avatar_compatibility.ui_summary())
+                elif previously_compatible and not self.avatar_compatibility.compatible:
+                    self._append_activity("UPDATE", "Unity marker became invalid: " + self.avatar_compatibility.block_reason())
                 return
 
             # Ignore Desktop -> avatar state echoes before compatibility
@@ -804,8 +811,8 @@ class StoriesOSCApp:
             if self.output_cache.get(parameter_name, object()) == parameter_value:
                 return
 
-            # Stories-generated gameplay fails closed unless Protocol 20 and a
-            # valid current schema marker have been observed.
+            # Stories-generated gameplay fails closed unless a supported Protocol
+            # 20/21 marker and valid current schema have been observed.
             if self.avatar_compatibility.is_protected_soy_parameter(parameter_name):
                 self.avatar_compatibility.note_protected_input()
                 if not self.avatar_compatibility.compatible:
