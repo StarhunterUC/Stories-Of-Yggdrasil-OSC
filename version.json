@@ -1,6 +1,6 @@
 {
   "product": "Stories Of Yggdrasil OSC",
-  "version": "0.8.22-prebuild.11",
+  "version": "0.8.22-prebuild.12",
   "channel": "pre-build",
   "api_minimum": "0.8.13",
   "unity_tool": "0.5.10-TB18.2",
