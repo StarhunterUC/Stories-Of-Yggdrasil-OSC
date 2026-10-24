@@ -36,6 +36,7 @@ from .models import EventResult
 from .osc_service import OSCEvent, OSCService
 from .sam_client import SamClient, SamEvent
 from .telemetry import coerce_percent, diablos_warning_label, percent_to_avatar_float
+from .ui_combat_effects import active_effect_labels, combat_stats_display
 from .update_manager import UpdateEvent, UpdateManager
 
 THEME = {
@@ -365,6 +366,7 @@ class StoriesOSCApp:
         ttk.Label(profile_card, text="Effective Combat Profile", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 5))
         self.combat_stats_label = ttk.Label(profile_card, text="ATK —  DEF —  MAG —  RES —  SPD —  EVA —  VIT —", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.combat_stats_label.pack(anchor="w")
+        self.combat_stats_note_label = ttk.Label(profile_card, text="", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.affinities_label = ttk.Label(profile_card, text="Affinities: waiting for Sam.py API 0.8.18", style="Muted.Card.TLabel", wraplength=500, justify="left")
         self.affinities_label.pack(anchor="w", pady=(3, 0))
         self.magicks_profile_label = ttk.Label(profile_card, text="Magicks: waiting for authoritative profile", style="Muted.Card.TLabel", wraplength=500, justify="left")
@@ -392,11 +394,9 @@ class StoriesOSCApp:
         ttk.Label(left, text="Active Status", style="CardTitle.TLabel").pack(anchor="w", padx=22, pady=(4, 8))
         self.status_frame = ttk.Frame(left, style="CardInner.TFrame")
         self.status_frame.pack(fill=tk.X, padx=18, pady=(0, 18))
-        self.status_labels: dict[str, ttk.Label] = {}
-        for index, name in enumerate(("Burn", "Bleed", "Silence", "Freeze", "Bind")):
-            label = ttk.Label(self.status_frame, text=name, style="StatusOff.TLabel")
-            label.grid(row=index // 3, column=index % 3, sticky="ew", padx=4, pady=4)
-            self.status_labels[name.lower()] = label
+        self.status_view_signature: tuple[str, ...] | None = None
+        self.status_empty_label = ttk.Label(self.status_frame, text="No active effects", style="Muted.Card.TLabel")
+        self.status_empty_label.grid(row=0, column=0, sticky="w", padx=4, pady=4)
         for col in range(3):
             self.status_frame.columnconfigure(col, weight=1)
 
@@ -2307,11 +2307,16 @@ class StoriesOSCApp:
             self.character_meta_label.configure(text="Pair with Sam.py to load class, race, MP, inventory, and recovery options.")
 
         profile = self.remote_state.get("combat_profile") if isinstance(self.remote_state.get("combat_profile"), dict) else {}
-        stats = profile.get("stats") if isinstance(profile.get("stats"), dict) else {}
-        if stats:
-            self.combat_stats_label.configure(text="  •  ".join(f"{key} {int(stats.get(key, 0) or 0)}" for key in ("ATK", "DEF", "MAG", "RES", "SPD", "EVA", "VIT")))
-        else:
-            self.combat_stats_label.configure(text="ATK —  DEF —  MAG —  RES —  SPD —  EVA —  VIT —")
+        stats_text, stats_warning = combat_stats_display(
+            profile, char, self.npc_roster, str(self.remote_state.get("profile_mode") or "player")
+        )
+        self.combat_stats_label.configure(text=stats_text)
+        if stats_warning:
+            self.combat_stats_note_label.configure(text=stats_warning, foreground=THEME["yellow"])
+            if not self.combat_stats_note_label.winfo_manager():
+                self.combat_stats_note_label.pack(anchor="w", pady=(3, 0))
+        elif self.combat_stats_note_label.winfo_manager():
+            self.combat_stats_note_label.pack_forget()
         affinities = profile.get("affinities") if isinstance(profile.get("affinities"), dict) else {}
         affinity_text = ", ".join(f"{name}: {relation.title()}" for name, relation in sorted(affinities.items())) or "None reported"
         self.affinities_label.configure(text=f"Affinities: {affinity_text}")
@@ -2325,9 +2330,27 @@ class StoriesOSCApp:
             self.action_availability_label.configure(text=f"Authoritative profile: {len(magicks)} Magick(s), {tech_count} Technick(s). Casting blockers: {', '.join(blockers) if blockers else 'None'}.")
         self._refresh_diagnostics_view()
 
-        active = snap.get("statuses", {})
-        for key, label in self.status_labels.items():
-            label.configure(style="StatusOn.TLabel" if key in active else "StatusOff.TLabel")
+        # Present server-authoritative effects for the CURRENT Player/NPC character.
+        # Never manufacture local countdowns or silently mix effects across profiles.
+        effect_labels = active_effect_labels(
+            self.remote_character,
+            now=time.time(),
+            offline_statuses=snap.get("statuses", {}),
+        )
+        effect_signature = tuple(effect_labels)
+        if effect_signature != self.status_view_signature:
+            for child in self.status_frame.winfo_children():
+                child.destroy()
+            if effect_labels:
+                for index, label_text in enumerate(effect_labels):
+                    ttk.Label(self.status_frame, text=label_text, style="StatusOn.TLabel").grid(
+                        row=index // 3, column=index % 3, sticky="ew", padx=4, pady=4
+                    )
+            else:
+                ttk.Label(self.status_frame, text="No active effects", style="Muted.Card.TLabel").grid(
+                    row=0, column=0, sticky="w", padx=4, pady=4
+                )
+            self.status_view_signature = effect_signature
         gate = self.remote_state.get("dm_gate") if isinstance(self.remote_state.get("dm_gate"), dict) else {}
         if bool(gate.get("active", False)):
             names = ", ".join(str(x) for x in gate.get("dm_names", []) if str(x))
