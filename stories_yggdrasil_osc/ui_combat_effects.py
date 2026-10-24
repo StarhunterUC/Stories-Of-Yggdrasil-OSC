@@ -53,7 +53,14 @@ def active_effect_labels(
     shown: dict[str, str] = {}
     expired: set[str] = set()
     entries = char.get("status_effects")
-    if not isinstance(entries, list):
+    if isinstance(entries, dict):
+        # Some server builds serialize status effects as a mapping keyed by name.
+        entries = [
+            dict(details, name=details.get("name") or str(name))
+            if isinstance(details, dict) else {"name": str(name), "active": bool(details)}
+            for name, details in entries.items()
+        ]
+    elif not isinstance(entries, list):
         entries = []
     for item in entries:
         name = _status_name(item)

@@ -38,3 +38,12 @@ def test_npc_stats_discrepancy_is_labeled_as_reference_only():
     assert "ATK 72" in text and "DEF 32" in text
     assert "ROSTER REFERENCE ONLY" in warning
     assert not combat_stats_display(effective, {"name": "Crow Demon"}, roster, "player")[1]
+
+def test_effect_dictionary_from_authoritative_server():
+    char = {"status_effects": {
+        "Protect": {"expires_at": 160, "potency": 2},
+        "Silence": {"active": False},
+    }}
+    rendered = active_effect_labels(char, now=100)
+    assert "Protect · 1m 0s · Potency 2" in rendered
+    assert not any("Silence" in value for value in rendered)

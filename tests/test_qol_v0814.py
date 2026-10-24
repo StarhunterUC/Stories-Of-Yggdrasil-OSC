@@ -147,3 +147,32 @@ def test_normal_repeated_status_messages_still_group():
     rows, second = append_grouped_activity(rows, "STATUS", "Protect wore off.", now=101)
     assert first is second
     assert second["count"] == 2
+
+
+def test_repeated_iframe_diagnostic_is_suppressed_without_hiding_combat_holds():
+    rows, _ = append_grouped_activity(
+        [], "IGNORED", "Average Contact ignored: local Contact i-frame is active.", now=100
+    )
+    assert should_suppress_activity_repeat(
+        rows, "IGNORED", "Average Contact ignored: local Contact i-frame is active.", now=100.5
+    )
+    assert not should_suppress_activity_repeat(
+        rows, "IGNORED", "Average Contact ignored: local Contact i-frame is active.", now=101.1
+    )
+    assert not should_suppress_activity_repeat(
+        rows, "COMBAT HOLD", "PvP Contact could not be attributed safely.", now=100.5
+    )
+    assert not should_suppress_activity_repeat(
+        rows, "DAMAGE", "Average attack dealt 74 damage.", now=100.5
+    )
+
+
+def test_spell_technick_notes_take_precedence_over_generic_descriptions():
+    rows = build_action_catalog([], {
+        "magicks": [{"name": "Protect", "mp_cost": 12, "notes": "Physical mitigation.",
+                     "description": "Generic text"}],
+        "technicks": [{"name": "Guard", "notes": "One-hit guard stance.",
+                       "description": "Generic text"}],
+    }, current_mp=100)
+    assert next(x for x in rows if x["name"] == "Protect")["effect"] == "Physical mitigation."
+    assert next(x for x in rows if x["name"] == "Guard")["effect"] == "One-hit guard stance."

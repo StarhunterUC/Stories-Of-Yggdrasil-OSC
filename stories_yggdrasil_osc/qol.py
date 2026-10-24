@@ -84,16 +84,23 @@ def should_suppress_activity_repeat(
     known non-actionable cleanup signatures are suppressed, and only briefly.
     """
     signature = _activity_message_signature(message)
-    if signature not in _ACTIVITY_CLEANUP_SIGNATURES:
+    wanted_category = str(category or "").strip().casefold()
+    # Only diagnostic i-frame rejects are safe to compress. Never suppress
+    # successful hits, PvP holds, damage, heals, or authoritative errors.
+    ignored_contact = (
+        wanted_category == "ignored"
+        and signature.endswith("contact ignored: local contact i-frame is active")
+    )
+    if signature not in _ACTIVITY_CLEANUP_SIGNATURES and not ignored_contact:
         return False
 
-    wanted_category = str(category or "").strip().casefold()
+    suppress_window = 1.0 if ignored_contact else ACTIVITY_CLEANUP_SUPPRESS_SECONDS
     epoch = float(time.time() if now is None else now)
 
     for row in reversed(list(rows)[-100:]):
         updated = float(row.get("updated_epoch", row.get("epoch", 0.0)) or 0.0)
         age = epoch - updated
-        if age > ACTIVITY_CLEANUP_SUPPRESS_SECONDS:
+        if age > suppress_window:
             break
         if (
             str(row.get("type") or "").strip().casefold() == wanted_category
@@ -224,7 +231,7 @@ def build_action_catalog(
             "favorite": key in favorite_set,
             "kind": kind,
             "name": name,
-            "effect": str(row.get("description") or row.get("target") or row.get("school") or "Authoritative Magick").strip(),
+            "effect": str(row.get("notes") or row.get("description") or row.get("effect_text") or row.get("target") or row.get("school") or "Authoritative Magick").strip(),
             "cost": f"{mp_cost} MP",
             "available": available,
             "status": "Available" if available else "Blocked",
@@ -250,7 +257,7 @@ def build_action_catalog(
             "favorite": key in favorite_set,
             "kind": kind,
             "name": name,
-            "effect": str(row.get("description") or row.get("target") or "Authoritative Technick").strip(),
+            "effect": str(row.get("notes") or row.get("description") or row.get("effect_text") or row.get("target") or "Authoritative Technick").strip(),
             "cost": str(row.get("cost_text") or row.get("cost") or "—").strip(),
             "available": available,
             "status": "Available" if available else "Blocked",
