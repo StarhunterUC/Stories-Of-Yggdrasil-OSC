@@ -354,13 +354,22 @@ $stageDir = Join-Path $env:TEMP ("StoriesOSC_Staging_" + [guid]::NewGuid().ToStr
 $phasePath = '__PHASEFILE__'
 $outcomePath = '__OUTCOMEFILE__'
 function Progress([string]$stage, [int]$percent, [int]$fileIndex = 0, [int]$fileTotal = 0, [long]$bytes = 0) {
-    # Atomic checkpoints, with no filenames or personal paths in the status.
-    $tempFile = $phasePath + ".tmp"
-    @{ phase = $stage; percent = $percent; file_index = $fileIndex;
+    # A single worker owns this checkpoint file. Windows PowerShell Move-Item
+    # -Force can fail with "file already exists" when the parent UI briefly
+    # has the destination open for reading. Write in place instead: the UI
+    # already tolerates a partially-written JSON checkpoint and retries.
+    $statusJson = @{ phase = $stage; percent = $percent; file_index = $fileIndex;
        file_total = $fileTotal; bytes_extracted = $bytes;
-       utc = (Get-Date).ToUniversalTime().ToString("o") } |
-      ConvertTo-Json | Set-Content -LiteralPath $tempFile -Encoding UTF8
-    Move-Item -LiteralPath $tempFile -Destination $phasePath -Force
+       utc = (Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json -Compress
+    for ($attempt = 0; $attempt -lt 8; $attempt++) {
+        try {
+            [System.IO.File]::WriteAllText($phasePath, $statusJson, [System.Text.Encoding]::UTF8)
+            return
+        } catch [System.IO.IOException] {
+            if ($attempt -eq 7) { throw "Could not update installer progress checkpoint after retries." }
+            Start-Sleep -Milliseconds 40
+        }
+    }
 }
 try {
     Progress "extract" 20
@@ -401,8 +410,12 @@ try {
             } else {
                 [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($target)) | Out-Null
                 $inputStream = $entry.Open()
+                # Staging is a fresh GUID-scoped directory. Using Create
+                # permits a repeated archive entry to replace the earlier one,
+                # instead of aborting installation with ERROR_FILE_EXISTS.
+                # Paths and link types are already checked above.
                 $outputStream = [System.IO.File]::Open($target,
-                    [System.IO.FileMode]::CreateNew,
+                    [System.IO.FileMode]::Create,
                     [System.IO.FileAccess]::Write,
                     [System.IO.FileShare]::None)
                 try {

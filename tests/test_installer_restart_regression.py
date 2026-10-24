@@ -16,7 +16,8 @@ class InstallerHangRegressionTests(unittest.TestCase):
 
     def test_stale_files_reset(self):
         self.assertIn('Remove-Item -LiteralPath $phasePath, $workerResult, $resultPath', self.source)
-        self.assertIn('Move-Item -LiteralPath $tempFile -Destination $phasePath -Force', self.source)
+        self.assertIn('[System.IO.File]::WriteAllText($phasePath, $statusJson', self.source)
+        self.assertNotIn('Move-Item -LiteralPath $tempFile -Destination $phasePath -Force', self.source)
 
     def test_worker_completion_checked(self):
         self.assertIn('if ($worker.HasExited) { break }', self.source)
