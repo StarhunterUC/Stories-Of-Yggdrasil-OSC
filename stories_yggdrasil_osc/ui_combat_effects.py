@@ -4,6 +4,7 @@ These helpers do not mutate HP, gameplay statuses, NPC records, or combat stats.
 """
 from __future__ import annotations
 
+from collections.abc import KeysView
 import math
 import time
 from typing import Any
@@ -92,7 +93,7 @@ def active_effect_labels(
     # Never mix an old Player's local effects into a confirmed NPC's status list.
     if not char:
         local_names = offline_statuses.keys() if isinstance(offline_statuses, dict) else offline_statuses
-        if isinstance(local_names, (list, tuple, set)):
+        if isinstance(local_names, (list, tuple, set, KeysView)):
             for item in local_names:
                 name = _status_name(item)
                 if name:
