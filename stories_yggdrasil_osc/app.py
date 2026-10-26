@@ -38,6 +38,7 @@ from .sam_client import SamClient, SamEvent
 from .telemetry import coerce_percent, diablos_warning_label, percent_to_avatar_float
 from .ui_combat_effects import active_effect_labels, combat_stats_display
 from .sam_state_guard import stale_same_character_revision
+from .movement_lock import MOVEMENT_PARAMETER, movement_locked_from_sam_state
 from .update_manager import UpdateEvent, UpdateManager
 
 THEME = {
@@ -638,10 +639,12 @@ class StoriesOSCApp:
         self.health_invert_var = tk.BooleanVar(value=bool(bridge.get("health_invert", True)))
         self.drive_health_var = tk.BooleanVar(value=bool(sam.get("drive_avatar_health_from_sam", False)))
         self.drive_status_var = tk.BooleanVar(value=bool(sam.get("drive_avatar_statuses_from_sam", False)))
+        self.drive_movement_var = tk.BooleanVar(value=bool(sam.get("drive_avatar_movement_lock_from_sam", False)))
         ttk.Checkbutton(avatar, text="Observe avatar Health parameter", variable=self.observe_health_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=5)
         ttk.Checkbutton(avatar, text="Health value represents accumulated damage", variable=self.health_invert_var).grid(row=2, column=2, columnspan=2, sticky="w", padx=20, pady=5)
         ttk.Checkbutton(avatar, text="Drive avatar Health from Sam.py", variable=self.drive_health_var).grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=5)
         ttk.Checkbutton(avatar, text="Drive avatar status parameters from Sam.py", variable=self.drive_status_var).grid(row=3, column=2, columnspan=2, sticky="w", padx=20, pady=(5, 16))
+        ttk.Checkbutton(avatar, text="Drive Movement Lock from confirmed Sam.py statuses (opt-in)", variable=self.drive_movement_var).grid(row=4, column=0, columnspan=4, sticky="w", padx=20, pady=(4, 12))
         avatar.columnconfigure(1, weight=1)
 
         identity_card = self._card(body)
@@ -1246,6 +1249,8 @@ class StoriesOSCApp:
         self.sam_client.reconfigure(cfg)
         self.remote_character = {}
         self.remote_state = {}
+        # Fail open on unlink; never leave a VRChat avatar immobilized.
+        self._send_parameter(MOVEMENT_PARAMETER, False)
         self.link_info = {}
         self.sam_api_version = ""
         self.sam_status_label.configure(text="Not paired", foreground=THEME["muted"])
@@ -1916,6 +1921,10 @@ class StoriesOSCApp:
 
         self.remote_state = dict(state)
         self.remote_character = dict(char)
+        if bool(self.config.get("sam", {}).get("drive_avatar_movement_lock_from_sam", False)):
+            self._send_parameter(MOVEMENT_PARAMETER, movement_locked_from_sam_state(state))
+        else:
+            self._send_parameter(MOVEMENT_PARAMETER, False)
         osc_state = state.get("osc") if isinstance(state.get("osc"), dict) else {}
         for param_key, value_key in (("enemy_mode", "enemy_mode"), ("mist_charge", "mist_charge"), ("mist_max", "mist_max"), ("mist_percent", "mist_percent"), ("diablos_applicable", "diablos_applicable"), ("diablos_percent", "diablos_percent")):
             parameter = str(self.config.get("parameters", {}).get(param_key) or "").strip()
@@ -2136,6 +2145,9 @@ class StoriesOSCApp:
             sam = self.config["sam"]
             sam["drive_avatar_health_from_sam"] = bool(self.drive_health_var.get())
             sam["drive_avatar_statuses_from_sam"] = bool(self.drive_status_var.get())
+            sam["drive_avatar_movement_lock_from_sam"] = bool(self.drive_movement_var.get())
+            if not sam["drive_avatar_movement_lock_from_sam"]:
+                self._send_parameter(MOVEMENT_PARAMETER, False)
             identity_cfg = self.config.setdefault("vrchat_identity", {})
             identity_cfg["user_id"] = str(self.vrchat_user_id_var.get()).strip()
             identity_cfg["display_name"] = str(self.vrchat_display_name_var.get()).strip()
