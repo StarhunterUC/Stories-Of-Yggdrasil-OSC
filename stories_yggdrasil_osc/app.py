@@ -37,6 +37,7 @@ from .osc_service import OSCEvent, OSCService
 from .sam_client import SamClient, SamEvent
 from .telemetry import coerce_percent, diablos_warning_label, percent_to_avatar_float
 from .ui_combat_effects import active_effect_labels, combat_stats_display
+from .sam_state_guard import stale_same_character_revision
 from .update_manager import UpdateEvent, UpdateManager
 
 THEME = {
@@ -1889,6 +1890,11 @@ class StoriesOSCApp:
     def _apply_sam_state(self, state: dict[str, Any], *, source: str, force: bool) -> None:
         char = state.get("character")
         if not isinstance(char, dict):
+            return
+        if stale_same_character_revision(state, self.remote_state):
+            # Delayed HTTP poll/sync replies must not roll back authoritative
+            # NPC HP, profile mode, status bars, or other state from a newer
+            # revision of this linked player character.
             return
         cfg = self.config.get("sam", {})
         if (
