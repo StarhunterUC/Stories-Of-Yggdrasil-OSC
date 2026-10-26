@@ -89,6 +89,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "pull_remote_changes": True,
         "drive_avatar_health_from_sam": False,
         "drive_avatar_statuses_from_sam": False,
+        "drive_avatar_movement_lock_from_sam": False,
         "authoritative_vrc_damage": True,
         "helpful_item_handshake": True,
         "helpful_item_match_window_seconds": 0.90,
