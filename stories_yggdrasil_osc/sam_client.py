@@ -61,6 +61,9 @@ class SamClient:
         self._sync_retry_at = 0.0
         self._last_success_monotonic = 0.0
         self._last_heartbeat_emit_at = 0.0
+        # P21 v4: pending responses can complete on the opposing device later.
+        # Keep bounded, authenticated replay probes with the SAME event ID.
+        self._pvp_pending: dict[str, dict[str, Any]] = {}
 
     def reconfigure(self, config: dict[str, Any]) -> None:
         with self._lock:
@@ -76,6 +79,7 @@ class SamClient:
                 self._consecutive_poll_failures = 0
                 self._last_poll_error = ""
                 self._sync_retry_at = 0.0
+                self._pvp_pending.clear()
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -542,36 +546,48 @@ class SamClient:
                 result,
                 source="combat_event",
             )
-        elif command == "pvp_attack_attempt":
-            result = self._request(
-                "POST",
-                "/pvp/attempt",
-                payload=payload,
-                use_auth=True,
-                timeout=5.0,
-            )
-            self._emit(
-                "pvp_handshake",
-                True,
-                str(result.get("message") or "PvP attack attempt registered."),
-                result,
-                source="pvp_attack_attempt",
-            )
-        elif command == "pvp_hit_receipt":
-            result = self._request(
-                "POST",
-                "/pvp/receipt",
-                payload=payload,
-                use_auth=True,
-                timeout=5.0,
-            )
-            self._emit(
-                "pvp_handshake",
-                True,
-                str(result.get("message") or "PvP hit receipt processed."),
-                result,
-                source="pvp_hit_receipt",
-            )
+        elif command in ("pvp_attack_attempt", "pvp_hit_receipt", "pvp_recheck"):
+            # Replays are read-only lookups on Protocol 21: the server returns
+            # STORE.prior(event) before its duplicate/pending branch. Never
+            # generate a new event ID while checking a pending transaction.
+            direction = (payload.get("_pvp_direction") if command == "pvp_recheck"
+                         else command)
+            if direction not in ("pvp_attack_attempt", "pvp_hit_receipt"):
+                raise ValueError("Invalid PvP replay direction")
+            endpoint = "/pvp/attempt" if direction == "pvp_attack_attempt" else "/pvp/receipt"
+            wire_payload = {"tier": str(payload.get("tier") or ""),
+                            "event_id": str(payload.get("event_id") or "")}
+            if not wire_payload["event_id"]:
+                raise ValueError("Missing PvP event ID")
+            result = self._request("POST", endpoint, payload=wire_payload,
+                                   use_auth=True, timeout=5.0)
+            event_id = wire_payload["event_id"]
+            if bool(result.get("pending", False)):
+                now = time.monotonic()
+                tracked = self._pvp_pending.get(event_id)
+                if tracked is None:
+                    # Keep the tracker bounded if the server remains unavailable
+                    # or the client receives an abnormal contact storm.
+                    if len(self._pvp_pending) >= 128:
+                        oldest = next(iter(self._pvp_pending))
+                        self._pvp_pending.pop(oldest, None)
+                    tracked = {"tier": wire_payload["tier"], "event_id": event_id,
+                               "_pvp_direction": direction, "started": now}
+                    self._pvp_pending[event_id] = tracked
+                if now - float(tracked["started"]) < 3.5:
+                    tracked["due"] = now + 0.55
+                else:
+                    self._pvp_pending.pop(event_id, None)
+                    self._emit("pvp_handshake", True,
+                               "PvP contact remained unconfirmed; no match result returned.",
+                               {"pending": False, "applied": False,
+                                "reason_code": "unconfirmed_timeout",
+                                "event_id": event_id}, source=direction)
+            else:
+                self._pvp_pending.pop(event_id, None)
+                self._emit("pvp_handshake", True,
+                           str(result.get("message") or "PvP handshake resolved."),
+                           result, source=direction)
         elif command == "helpful_item_self":
             result = self._request(
                 "POST",
@@ -715,6 +731,15 @@ class SamClient:
     def _worker(self) -> None:
         while not self._stop.is_set():
             self._queue_sync_retry_if_due()
+            # Probe due events using the original authenticated endpoint/ID.
+            # The worker sends at most one due replay per loop; no sleeps or
+            # extra threads are introduced into the Desktop UI.
+            now_pvp = time.monotonic()
+            for pvp_id, pending in list(self._pvp_pending.items()):
+                if float(pending.get("due", float("inf"))) <= now_pvp:
+                    pending["due"] = float("inf")
+                    self._commands.put(("pvp_recheck", dict(pending)))
+                    break
             command = None
             payload: dict[str, Any] = {}
             try:
